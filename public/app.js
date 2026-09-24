@@ -11,7 +11,15 @@ function avatar(m){return m.profilePicture?`<img class="avatar-img" src="${esc(m
 function render(snapshot){
   lastSnapshot=snapshot||lastSnapshot;
   const root=$('#teams');
-  if(snapshot.error) $('#toast').textContent=snapshot.error; else if($('#toast').textContent.startsWith('Reddit')) $('#toast').textContent='';
+  if(snapshot.error) {
+    $('#toast').textContent=snapshot.error;
+  } else if (snapshot.source && snapshot.source.requestedPlayers > 0 && snapshot.source.returnedPlayers === 0) {
+    $('#toast').textContent=`API działa, ale /saved nie zwrócił żadnego z ${snapshot.source.requestedPlayers} SteamID dla tego serwera/wipe.`;
+  } else if (snapshot.source && snapshot.source.missingIds?.length) {
+    $('#toast').textContent=`Dane znalezione dla ${snapshot.source.returnedPlayers}/${snapshot.source.requestedPlayers} graczy. Brak: ${snapshot.source.missingIds.join(', ')}`;
+  } else if($('#toast').textContent.startsWith('Reddit') || $('#toast').textContent.startsWith('API działa') || $('#toast').textContent.startsWith('Dane znalezione')) {
+    $('#toast').textContent='';
+  }
   const byId=new Map((snapshot.teams||[]).map(t=>[t.id,t]));
   root.innerHTML=teamsMeta.map(meta=>{
     const t=byId.get(meta.id)||{...meta,stats:{},members:meta.members};
