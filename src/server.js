@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readStore, writeStore } from './store.js';
-import { STAT_IDS, fetchValuesForMembers } from './reddit.js';
+import { STAT_IDS, fetchValuesForMembers, getPage, normalizeAuthToken } from './reddit.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -69,6 +69,23 @@ app.put('/api/config', auth, (req, res) => {
   if (String(req.body.authToken || '').trim()) db.config.authToken = String(req.body.authToken).trim();
   writeStore(db);
   res.json({ ok: true });
+});
+
+
+app.post('/api/config/test', auth, async (req, res) => {
+  const db = readStore();
+  const temp = {
+    ...db.config,
+    server: String(req.body.server || db.config.server || '').trim(),
+    wipeDate: String(req.body.wipeDate || db.config.wipeDate || '').trim(),
+    authToken: String(req.body.authToken || '').trim() || db.config.authToken
+  };
+  try {
+    const rows = await getPage(temp, STAT_IDS.wood, 0);
+    res.json({ ok: true, rows: rows.length, authHeaderConfigured: Boolean(normalizeAuthToken(temp.authToken)) });
+  } catch (e) {
+    res.status(400).json({ error: e.message || String(e) });
+  }
 });
 
 app.get('/api/teams', auth, (req, res) => res.json(readStore().teams));
