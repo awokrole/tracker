@@ -11,7 +11,9 @@ export const STAT_IDS = {
   c4: 'user_held_item_explosive.timed',
   explosiveAmmo: 'ammo_used_ammo.rifle.explosive',
   satchels: 'user_held_item_explosive.satchel',
-  kills: 'official_kill_player'
+  kills: 'official_kill_player',
+  deaths: 'official_deaths',
+  playTime: 'official_time'
 };
 
 const SAVED_CACHE_TTL_MS = Number(process.env.REDDIT_SAVED_CACHE_TTL_MS || 30_000);
@@ -31,7 +33,7 @@ function headers(config) {
     Authorization: normalizeAuthToken(config.authToken),
     'X-Tenant-Id': process.env.REDDIT_TENANT_ID || 'reddit_play_rust',
     Accept: 'application/json',
-    'User-Agent': 'RustStatsDashboard/0.1.7'
+    'User-Agent': 'RustStatsDashboard/0.1.8'
   };
 }
 

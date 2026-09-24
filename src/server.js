@@ -117,7 +117,7 @@ async function buildSnapshot() {
   const db = readStore();
   const teams = db.teams.filter(t => t.tracked);
   const ids = [...new Set(teams.flatMap(t => t.members.map(m => m.steamId)))];
-  const allStats = ['wood','metal','hqMetal','sulfur','stones','rockets','hvRockets','c4','explosiveAmmo','satchels','kills'];
+  const allStats = ['wood','metal','hqMetal','sulfur','stones','rockets','hvRockets','c4','explosiveAmmo','satchels','kills','deaths','playTime'];
   const players = await fetchSavedPlayers(db.config, ids);
 
   const value = (player, key) => Number(player?.stats?.[STAT_IDS[key]] || 0);
