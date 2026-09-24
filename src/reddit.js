@@ -31,7 +31,7 @@ function headers(config) {
     Authorization: normalizeAuthToken(config.authToken),
     'X-Tenant-Id': process.env.REDDIT_TENANT_ID || 'reddit_play_rust',
     Accept: 'application/json',
-    'User-Agent': 'RustStatsDashboard/0.1.4'
+    'User-Agent': 'RustStatsDashboard/0.1.5'
   };
 }
 
@@ -52,13 +52,35 @@ function chunk(arr, size) {
 }
 
 function extractSavedRows(data) {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.results)) return data.results;
-  if (Array.isArray(data?.players)) return data.players;
-  if (Array.isArray(data?.saved)) return data.saved;
-  return [];
+  // Endpoint /saved has changed shape between frontend versions.
+  // Instead of assuming one wrapper key, walk the JSON and collect
+  // objects that look like player records (identity + a stats object).
+  const rows = [];
+  const seen = new Set();
+
+  function walk(v, depth = 0) {
+    if (depth > 8 || v == null) return;
+    if (Array.isArray(v)) {
+      for (const x of v) walk(x, depth + 1);
+      return;
+    }
+    if (typeof v !== 'object') return;
+
+    const id = userIdOf(v);
+    const stats = statsOf(v);
+    if (id && stats && typeof stats === 'object' && !Array.isArray(stats)) {
+      const key = `${id}:${Object.keys(stats).length}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        rows.push(v);
+      }
+    }
+
+    for (const child of Object.values(v)) walk(child, depth + 1);
+  }
+
+  walk(data);
+  return rows;
 }
 
 function userIdOf(row) {
@@ -73,8 +95,25 @@ function userIdOf(row) {
   );
 }
 
+function looksLikeStats(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+  const keys = Object.keys(obj);
+  return keys.some(k => k.startsWith('official_') || k.startsWith('explosive_') || k.startsWith('ammo_') || k.startsWith('user_held_item_') || k === 'item_gather_scrap');
+}
+
 function statsOf(row) {
-  return row?.stats || row?.statistics || row?.playerStats || row?.values || {};
+  const direct = [row?.stats, row?.statistics, row?.playerStats, row?.values, row?.wipeStats, row?.wipeStats?.stats];
+  for (const x of direct) if (looksLikeStats(x)) return x;
+
+  // Fallback for nested API wrappers.
+  let found = null;
+  function walk(v, depth = 0) {
+    if (found || depth > 6 || v == null || typeof v !== 'object') return;
+    if (looksLikeStats(v)) { found = v; return; }
+    for (const child of Object.values(v)) walk(child, depth + 1);
+  }
+  walk(row);
+  return found || {};
 }
 
 function steamProfileOf(row) {

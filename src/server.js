@@ -138,7 +138,7 @@ async function buildSnapshot() {
       })
     })),
     error: null,
-    source: { endpoint: 'saved', requestedPlayers: ids.length, returnedPlayers: players.size }
+    source: { endpoint: 'saved', requestedPlayers: ids.length, returnedPlayers: players.size, matchedIds: [...players.keys()], missingIds: ids.filter(id => !players.has(id)) }
   };
 }
 async function refresh() {
@@ -151,6 +151,19 @@ setInterval(refresh, 30_000).unref();
 
 app.get('/api/stats', auth, async (req,res) => { if (!lastSnapshot.timestamp) await refresh(); res.json(lastSnapshot); });
 app.post('/api/stats/refresh', auth, async (req,res) => { clearPageCache(); await refresh(); res.json(lastSnapshot); });
+app.get('/api/debug/player/:steamId', auth, async (req, res) => {
+  const steamId = String(req.params.steamId || '').trim();
+  if (!/^7656\d{13}$/.test(steamId)) return res.status(400).json({ error: 'Nieprawidłowy SteamID64.' });
+  try {
+    const db = readStore();
+    const players = await fetchSavedPlayers(db.config, [steamId], { bypassCache: true });
+    const p = players.get(steamId);
+    res.json({ found: Boolean(p), steamId, player: p || null });
+  } catch (e) {
+    res.status(400).json({ error: e.message || String(e) });
+  }
+});
+
 app.get('/api/stats/live', auth, (req,res) => {
   res.setHeader('Content-Type','text/event-stream'); res.setHeader('Cache-Control','no-cache'); res.setHeader('Connection','keep-alive');
   res.flushHeaders?.(); clients.add(res); res.write(`data: ${JSON.stringify(lastSnapshot)}\n\n`); req.on('close',()=>clients.delete(res));
