@@ -129,10 +129,15 @@ async function buildSnapshot() {
       stats: Object.fromEntries(allStats.map(k => [k, t.members.reduce((sum, m) => sum + value(players.get(m.steamId), k), 0)])),
       members: t.members.map(m => {
         const p = players.get(m.steamId);
+        const currentServerId = p?.recentActivity?.currentServerId || null;
+        const isOnline = Boolean(currentServerId && currentServerId === db.config.server);
         return {
           ...m,
           name: m.name || p?.displayName || m.steamId,
           profilePicture: p?.profilePicture || '',
+          isOnline,
+          currentServerId,
+          lastPing: p?.recentActivity?.lastPing || null,
           stats: Object.fromEntries(allStats.map(k => [k, value(p, k)]))
         };
       })

@@ -31,7 +31,7 @@ function headers(config) {
     Authorization: normalizeAuthToken(config.authToken),
     'X-Tenant-Id': process.env.REDDIT_TENANT_ID || 'reddit_play_rust',
     Accept: 'application/json',
-    'User-Agent': 'RustStatsDashboard/0.1.6'
+    'User-Agent': 'RustStatsDashboard/0.1.7'
   };
 }
 
@@ -154,11 +154,17 @@ export async function fetchSavedPlayers(config, memberIds, { bypassCache = false
       if (!userId) continue;
       const steam = steamProfileOf(row);
       const stats = statsOf(row) || {};
+      const recentActivity = row?.user?.recentActivity || row?.recentActivity || {};
       const candidate = {
         userId,
         stats,
         displayName: String(steam.displayName || row?.displayName || row?.user?.displayName || '').trim(),
         profilePicture: String(steam.profilePicture || row?.profilePicture || row?.user?.profilePicture || '').trim(),
+        recentActivity: {
+          currentServerId: recentActivity?.currentServerId == null ? null : String(recentActivity.currentServerId),
+          lastPing: recentActivity?.lastPing || null,
+          lastSeenServer: recentActivity?.lastSeenServer || null
+        },
         raw: row
       };
       // /saved contains nested user objects as well as the outer player+stats record.
