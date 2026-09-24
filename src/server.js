@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readStore, writeStore } from './store.js';
-import { STAT_IDS, fetchValuesForMembers, getPage, normalizeAuthToken } from './reddit.js';
+import { STAT_IDS, fetchValuesForMembers, getPage, normalizeAuthToken, clearPageCache } from './reddit.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -68,6 +68,7 @@ app.put('/api/config', auth, (req, res) => {
   db.config.battlemetricsServerId = String(req.body.battlemetricsServerId || '').trim();
   if (String(req.body.authToken || '').trim()) db.config.authToken = String(req.body.authToken).trim();
   writeStore(db);
+  clearPageCache();
   res.json({ ok: true });
 });
 
@@ -119,7 +120,11 @@ async function buildSnapshot() {
   const displayStats = ['wood','metal','hqMetal','sulfur','stones','rockets'];
   const raidStats = ['hvRockets','c4','explosiveAmmo','satchels','kills'];
   const maps = {};
-  for (const key of [...displayStats, ...raidStats]) maps[key] = await fetchValuesForMembers(db.config, STAT_IDS[key], ids);
+  const scan = {};
+  for (const key of [...displayStats, ...raidStats]) {
+    maps[key] = await fetchValuesForMembers(db.config, STAT_IDS[key], ids);
+    scan[key] = maps[key].scanInfo || null;
+  }
   return {
     timestamp: new Date().toISOString(),
     teams: teams.map(t => ({
@@ -127,7 +132,8 @@ async function buildSnapshot() {
       stats: Object.fromEntries([...displayStats, ...raidStats].map(k => [k, t.members.reduce((sum,m)=>sum+(maps[k].get(m.steamId)||0),0)])),
       members: t.members.map(m => ({ ...m, stats: Object.fromEntries([...displayStats, ...raidStats].map(k => [k, maps[k].get(m.steamId)||0])) }))
     })),
-    error: null
+    error: null,
+    scan
   };
 }
 async function refresh() {
@@ -139,7 +145,7 @@ async function refresh() {
 setInterval(refresh, 30_000).unref();
 
 app.get('/api/stats', auth, async (req,res) => { if (!lastSnapshot.timestamp) await refresh(); res.json(lastSnapshot); });
-app.post('/api/stats/refresh', auth, async (req,res) => { await refresh(); res.json(lastSnapshot); });
+app.post('/api/stats/refresh', auth, async (req,res) => { clearPageCache(); await refresh(); res.json(lastSnapshot); });
 app.get('/api/stats/live', auth, (req,res) => {
   res.setHeader('Content-Type','text/event-stream'); res.setHeader('Cache-Control','no-cache'); res.setHeader('Connection','keep-alive');
   res.flushHeaders?.(); clients.add(res); res.write(`data: ${JSON.stringify(lastSnapshot)}\n\n`); req.on('close',()=>clients.delete(res));
