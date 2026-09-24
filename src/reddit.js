@@ -31,7 +31,7 @@ function headers(config) {
     Authorization: normalizeAuthToken(config.authToken),
     'X-Tenant-Id': process.env.REDDIT_TENANT_ID || 'reddit_play_rust',
     Accept: 'application/json',
-    'User-Agent': 'RustStatsDashboard/0.1.5'
+    'User-Agent': 'RustStatsDashboard/0.1.6'
   };
 }
 
@@ -113,7 +113,7 @@ function statsOf(row) {
     for (const child of Object.values(v)) walk(child, depth + 1);
   }
   walk(row);
-  return found || {};
+  return found;
 }
 
 function steamProfileOf(row) {
@@ -153,13 +153,20 @@ export async function fetchSavedPlayers(config, memberIds, { bypassCache = false
       const userId = userIdOf(row);
       if (!userId) continue;
       const steam = steamProfileOf(row);
-      result.set(userId, {
+      const stats = statsOf(row) || {};
+      const candidate = {
         userId,
-        stats: statsOf(row),
+        stats,
         displayName: String(steam.displayName || row?.displayName || row?.user?.displayName || '').trim(),
         profilePicture: String(steam.profilePicture || row?.profilePicture || row?.user?.profilePicture || '').trim(),
         raw: row
-      });
+      };
+      // /saved contains nested user objects as well as the outer player+stats record.
+      // Never let a metadata-only nested object overwrite the richer outer row.
+      const prev = result.get(userId);
+      const prevCount = prev ? Object.keys(prev.stats || {}).length : -1;
+      const nextCount = Object.keys(stats).length;
+      if (!prev || nextCount > prevCount) result.set(userId, candidate);
     }
   }
 
