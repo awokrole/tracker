@@ -119,24 +119,21 @@ function render(snapshot) {
       <div class="separator"></div>
 
       <div class="members-head">
-        <span>Team Members</span>
-        <b>${t.members.length}/12</b>
+        <span>Online now</span>
+        <b>${t.members.filter(m => m.isOnline).length}/${t.members.length} online</b>
       </div>
 
-      <div class="members">
-        ${(t.members || []).map(m => `
+      <div class="members online-preview">
+        ${(() => { const online=(t.members||[]).filter(m=>m.isOnline); if(!online.length) return '<div class="no-online">No players online</div>'; return online.slice(0,6).map(m => `
           <div class="member">
-            <span class="dot ${m.isOnline ? 'online' : 'offline'}" title="${m.isOnline ? 'Online' : 'Offline'}"></span>
+            <span class="dot online" title="Online"></span>
             ${avatar(m)}
-            <span class="${m.isOnline ? 'member-online' : ''}" title="${esc(m.steamId)} · ${m.isOnline ? 'ONLINE' : 'offline'}">${esc(m.name || m.steamId)}</span>
+            <span class="member-online" title="${esc(m.steamId)} · ONLINE">${esc(m.name || m.steamId)}</span>
           </div>
-        `).join('')}
+        `).join('') + (online.length>6 ? `<div class="more-online">+${online.length-6} more online</div>` : ''); })()}
       </div>
 
-      <details onclick="event.stopPropagation()">
-        <summary>Raid stats</summary>
-        <div class="raid">HV: ${fmt(t.stats?.hvRockets)} · C4: ${fmt(t.stats?.c4)} · Explo: ${fmt(t.stats?.explosiveAmmo)} · Satchels: ${fmt(t.stats?.satchels)} · Kills: ${fmt(t.stats?.kills)}</div>
-      </details>
+      <div class="card-hint">Click team to view all players and detailed stats</div>
     </section>
   `).join('') || '<div class="empty">No teams match your search. Click <b>Create Team</b> to add one.</div>';
 

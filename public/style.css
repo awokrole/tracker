@@ -111,7 +111,7 @@ button.primary:hover{background:linear-gradient(180deg,#f28041,#b84c21)}
 }
 
 .team-card{
-  position:relative;overflow:hidden;padding:24px;border-radius:24px;cursor:pointer;min-height:720px;
+  position:relative;overflow:hidden;padding:24px;border-radius:24px;cursor:pointer;min-height:0;
   background:
     linear-gradient(180deg,rgba(7,11,17,.72),rgba(7,11,17,.92)),
     url('/assets/rust-industrial-bg.png') center/cover no-repeat;
@@ -142,7 +142,7 @@ button.primary:hover{background:linear-gradient(180deg,#f28041,#b84c21)}
 
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .stat,.detail-total{
-  position:relative;overflow:hidden;isolation:isolate;min-height:144px;padding:18px 18px 16px;
+  position:relative;overflow:hidden;isolation:isolate;min-height:112px;padding:15px 16px 14px;
   background:linear-gradient(180deg,rgba(8,12,18,.82),rgba(8,12,18,.92));
   border:1px solid rgba(110,141,202,.18);border-radius:18px;
 }
@@ -158,7 +158,7 @@ button.primary:hover{background:linear-gradient(180deg,#f28041,#b84c21)}
 }
 .stat-label{display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#d0dcf4;font-size:15px}
 .rust-icon{width:18px;height:18px;object-fit:contain}
-.stat strong,.detail-total strong{display:block;font-size:48px;line-height:1.04;letter-spacing:-.04em;max-width:75%}
+.stat strong,.detail-total strong{display:block;font-size:38px;line-height:1.04;letter-spacing:-.04em;max-width:75%}
 .separator{height:1px;background:linear-gradient(90deg,transparent,rgba(165,182,217,.2),transparent);margin:18px 0 16px}
 .members-head{display:flex;justify-content:space-between;align-items:center;margin:0 0 14px;color:#c7d7f6;font-size:13px;letter-spacing:.12em;text-transform:uppercase}
 .members-head b{font-size:13px;background:rgba(12,16,23,.76);border:1px solid rgba(108,138,192,.18);padding:6px 10px;border-radius:10px;color:#dce8fe}
@@ -297,3 +297,18 @@ dialog::backdrop{background:rgba(0,0,0,.76);backdrop-filter:blur(3px)}
   .chart-card h3,.statistics-pane h3{font-size:24px}
   .bar-chart{overflow:auto;min-width:700px}
 }
+
+/* v0.3.1 compact overview */
+.team-card{padding:20px}
+.team-title h2{font-size:42px}
+.status-row{margin:12px 0 16px}
+.stats{gap:12px}
+.stat-watermark-img{width:34%;max-width:118px;opacity:.48}
+.members-head{margin-top:14px}
+.online-preview{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
+.online-preview .member{padding:5px 0}
+.online-preview .avatar-img,.online-preview .avatar{width:28px;height:28px}
+.no-online{grid-column:1/-1;color:#93a6c7;padding:8px 0;font-size:14px}
+.more-online{grid-column:1/-1;color:#7fb2ff;font-size:13px;padding-top:4px}
+.card-hint{margin-top:14px;padding-top:12px;border-top:1px solid rgba(112,130,169,.10);color:#7f94b6;font-size:12px;text-align:center}
+@media(max-width:920px){.online-preview{grid-template-columns:1fr}.team-title h2{font-size:36px}}
