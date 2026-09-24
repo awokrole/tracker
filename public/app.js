@@ -18,6 +18,17 @@ function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt
 async function json(url,opt){const r=await fetch(url,opt);if(r.status===401){location='/login';return;}const j=await r.json();if(!r.ok)throw new Error(j.error||'Błąd');return j;}
 async function load(){teamsMeta=await json('/api/teams');render(await json('/api/stats'));}
 $('#settingsBtn').onclick=async()=>{const c=await json('/api/config');$('#server').value=c.server||'';$('#wipeDate').value=c.wipeDate||'';$('#bmId').value=c.battlemetricsServerId||'';$('#authToken').value='';$('#tokenState').textContent=c.hasAuthToken?'Auth token is configured. Enter a new token to replace it.':'Auth token is not configured.';$('#settings').showModal();};
+
+$('#testApi').onclick=async()=>{
+  $('#toast').textContent='Testuję Reddit PlayRust API…';
+  try {
+    const j=await json('/api/config/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({server:$('#server').value,wipeDate:$('#wipeDate').value,authToken:$('#authToken').value})});
+    $('#toast').textContent=`API OK — pobrano ${j.rows} rekordów z pierwszej strony Wood.`;
+  } catch(e) {
+    $('#toast').textContent=e.message;
+  }
+};
+
 $('#saveSettings').onclick=async()=>{await json('/api/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({server:$('#server').value,wipeDate:$('#wipeDate').value,battlemetricsServerId:$('#bmId').value,authToken:$('#authToken').value})});$('#settings').close();$('#toast').textContent='Ustawienia zapisane. Odświeżam dane…';await json('/api/stats/refresh',{method:'POST'});};
 $('#createBtn').onclick=()=>$('#create').showModal();
 $('#saveTeam').onclick=async()=>{const members=$('#members').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{const [steamId,...rest]=line.split(',');return {steamId:steamId.trim(),name:rest.join(',').trim()};});await json('/api/teams',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('#teamName').value,members})});$('#create').close();$('#teamName').value='';$('#members').value='';await load();await json('/api/stats/refresh',{method:'POST'});};
