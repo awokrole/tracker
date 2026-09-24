@@ -1,18 +1,183 @@
-<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rust Stats Tracker</title><link rel="stylesheet" href="/style.css"></head><body><header><div class="brand-wrap"><span class="brand-mark">R</span><div><h1>Rust Stats Tracker</h1><p>Manage teams and track farming progress</p></div></div><div class="top-actions"><button id="settingsBtn">⚙ Settings</button><button id="createBtn" class="primary">＋ Create Team</button><form action="/logout" method="post"><button>Logout</button></form></div></header><main id="teams" class="grid"></main>
-<div id="toast" class="toast" hidden><span id="toastText"></span><button id="toastClose" class="toast-close" type="button" aria-label="Zamknij">×</button></div>
-<dialog id="settings"><form method="dialog" class="modal"><h2>Settings</h2><div class="tabs"><b>Server</b><span>Discord</span><span>Thresholds</span></div><label>Server</label><input id="server" placeholder="reddit_eu_monthly"><small>e.g. reddit_eu_monthly, reddit_us_monthly, reddit_eu_main</small><label>Wipe Date</label><input id="wipeDate" placeholder="2026-09-03T17:55:00Z"><small>ISO format: YYYY-MM-DDTHH:MM:SSZ</small><label>BattleMetrics Server ID</label><input id="bmId" placeholder="3344761"><small>Zapisywane w konfiguracji panelu.</small><label>Auth Token</label><div id="tokenState" class="notice"></div><input id="authToken" type="password" placeholder="Bearer eyJ..."><small>Token nie jest zwracany do przeglądarki po zapisaniu.</small><div class="modal-actions"><button id="testApi" type="button">Test API</button><button value="cancel">Cancel</button><button id="saveSettings" type="button" class="primary">Save</button></div></form></dialog>
-<dialog id="create"><form method="dialog" class="modal"><h2>Create Team</h2><label>Team name</label><input id="teamName" placeholder="AWOK"><label>Members</label><textarea id="members" rows="9" placeholder="76561198014687798, Awok\n7656119..., Player 2"></textarea><small>Jedna osoba na linię: SteamID64, opcjonalna nazwa po przecinku.</small><div class="modal-actions"><button value="cancel">Cancel</button><button id="saveTeam" type="button" class="primary">Create</button></div></form></dialog>
-<dialog id="teamDetail" class="team-detail-dialog"><div class="team-detail-shell">
-  <div class="detail-header"><div><h2 id="detailTitle">Team</h2><p>Manage team members</p></div><div class="detail-header-actions"><button id="detailRename">✎ Rename</button><button id="refreshDetail">↻ Refresh</button><button id="detailDelete" class="danger-solid">🗑 Delete</button><button class="detail-close" onclick="document.getElementById('teamDetail').close()" aria-label="Close">×</button></div></div>
-  <div class="detail-add"><label>Steam64 ID</label><div><input id="newMemberId" placeholder="7656119..."><button id="addMemberBtn" class="success">Add Member</button></div></div>
-  <div class="detail-section"><div class="detail-section-head"><span>▥ &nbsp;Team totals</span><small id="detailUpdated">Updated just now</small></div><div id="detailTotals" class="detail-totals"></div></div>
-  <div class="detail-section members-detail-section"><div class="detail-section-head"><span>Team Members</span><small id="detailMemberCount"></small></div><div id="detailMembers" class="detail-members"></div></div>
-</div></dialog>
-<dialog id="statisticsDialog" class="statistics-dialog"><div class="statistics-shell">
-  <div class="statistics-head"><div><h2 id="statisticsTitle">Team - Statistics</h2><p>Farming progress and activity analysis</p></div><button id="statisticsClose">Close</button></div>
-  <div class="statistics-tabs"><button class="statistics-tab active" data-tab="farm">Farm History</button><button class="statistics-tab" data-tab="online">Online Activity</button><button class="statistics-tab" data-tab="raid">Raid Windows</button></div>
-  <section id="statsFarm" class="statistics-pane active"><div class="range-row"><label>Time Range:</label><select id="statsRange"><option value="24">Last 24 hours</option><option value="72">Last 3 days</option><option value="168">Last 7 days</option><option value="336">Last 14 days</option></select></div><div class="chart-card"><h3>Resource Farming Over Time</h3><div id="farmChart" class="chart-wrap"></div></div><div class="chart-card"><h3>Team Online Members</h3><div id="onlineLineChart" class="chart-wrap"></div></div></section>
-  <section id="statsOnline" class="statistics-pane"><h3>Average Online Players by Hour</h3><p class="stats-subtitle">Shows when team members are typically online</p><div class="chart-card"><div id="hourlyChart" class="chart-wrap large"></div></div><div class="activity-legend"><span><i class="peak-dot"></i>Peak activity (50%+ online)</span><span><i class="normal-dot"></i>Normal activity</span></div></section>
-  <section id="statsRaid" class="statistics-pane"><h3>Best Raid Windows</h3><p class="stats-subtitle">Times when the team has the fewest players online (best opportunity to raid)</p><div id="raidWindows" class="raid-window-list"></div><div class="history-note">Based on historical activity data. Results may vary.</div></section>
-</div></dialog>
-<script src="/app.js"></script></body></html>
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rust Team Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">R</div>
+        <div>
+          <strong>RUST</strong>
+          <span>TEAM TRACKER</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-link active" href="#"><span>⌂</span>Dashboard</a>
+        <a class="nav-link" href="#"><span>▦</span>Teams</a>
+        <a class="nav-link" href="#"><span>◎</span>Players</a>
+        <a class="nav-link" href="#"><span>▤</span>Statistics</a>
+        <a class="nav-link" href="#"><span>◉</span>Discord</a>
+        <a class="nav-link" href="#"><span>⚙</span>Settings</a>
+      </nav>
+
+      <div class="sidebar-foot">
+        <small>Rust team dashboard v0.3</small>
+      </div>
+    </aside>
+
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="hero-kicker">Rust Stats Tracker</div>
+          <h1>Teams</h1>
+          <p>Track your team's progress, online activity and farming results.</p>
+        </div>
+
+        <div class="hero-actions">
+          <div class="toolbar-search">
+            <input id="teamSearch" type="search" placeholder="Search teams...">
+          </div>
+          <button id="settingsBtn">⚙ Settings</button>
+          <button id="createBtn" class="primary">＋ Create Team</button>
+          <form action="/logout" method="post"><button type="submit">Logout</button></form>
+        </div>
+      </section>
+
+      <main id="teams" class="teams-grid"></main>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" hidden>
+    <span id="toastText"></span>
+    <button id="toastClose" class="toast-close" type="button" aria-label="Zamknij">×</button>
+  </div>
+
+  <dialog id="settings">
+    <form method="dialog" class="modal">
+      <h2>Settings</h2>
+      <div class="tabs"><b>Server</b><span>Discord</span><span>Thresholds</span></div>
+      <label>Server</label>
+      <input id="server" placeholder="reddit_eu_monthly">
+      <small>e.g. reddit_eu_monthly, reddit_us_monthly, reddit_eu_main</small>
+      <label>Wipe Date</label>
+      <input id="wipeDate" placeholder="2026-09-03T17:55:00Z">
+      <small>ISO format: YYYY-MM-DDTHH:MM:SSZ</small>
+      <label>BattleMetrics Server ID</label>
+      <input id="bmId" placeholder="3344761">
+      <small>Zapisywane w konfiguracji panelu.</small>
+      <label>Auth Token</label>
+      <div id="tokenState" class="notice"></div>
+      <input id="authToken" type="password" placeholder="Bearer eyJ...">
+      <small>Token nie jest zwracany do przeglądarki po zapisaniu.</small>
+      <div class="modal-actions">
+        <button id="testApi" type="button">Test API</button>
+        <button value="cancel">Cancel</button>
+        <button id="saveSettings" type="button" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="create">
+    <form method="dialog" class="modal">
+      <h2>Create Team</h2>
+      <label>Team name</label>
+      <input id="teamName" placeholder="AWOK">
+      <label>Members</label>
+      <textarea id="members" rows="9" placeholder="76561198014687798, Awok&#10;7656119..., Player 2"></textarea>
+      <small>Jedna osoba na linię: SteamID64, opcjonalna nazwa po przecinku.</small>
+      <div class="modal-actions">
+        <button value="cancel">Cancel</button>
+        <button id="saveTeam" type="button" class="primary">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="teamDetail" class="team-detail-dialog">
+    <div class="team-detail-shell">
+      <div class="detail-header">
+        <div>
+          <h2 id="detailTitle">Team</h2>
+          <p>Manage team members and review detailed stats</p>
+        </div>
+        <div class="detail-header-actions">
+          <button id="detailRename">✎ Rename</button>
+          <button id="refreshDetail">↻ Refresh</button>
+          <button id="detailDelete" class="danger-solid">🗑 Delete</button>
+          <button class="detail-close" onclick="document.getElementById('teamDetail').close()" aria-label="Close">×</button>
+        </div>
+      </div>
+      <div class="detail-add">
+        <label>Steam64 ID</label>
+        <div>
+          <input id="newMemberId" placeholder="7656119...">
+          <button id="addMemberBtn" class="success">Add Member</button>
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-head"><span>▥ Team totals</span><small id="detailUpdated">Updated just now</small></div>
+        <div id="detailTotals" class="detail-totals"></div>
+      </div>
+      <div class="detail-section members-detail-section">
+        <div class="detail-section-head"><span>Team Members</span><small id="detailMemberCount"></small></div>
+        <div id="detailMembers" class="detail-members"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="statisticsDialog" class="statistics-dialog">
+    <div class="statistics-shell">
+      <div class="statistics-head">
+        <div>
+          <h2 id="statisticsTitle">Team - Statistics</h2>
+          <p>Farming progress and activity analysis</p>
+        </div>
+        <button id="statisticsClose">Close</button>
+      </div>
+      <div class="statistics-tabs">
+        <button class="statistics-tab active" data-tab="farm">Farm History</button>
+        <button class="statistics-tab" data-tab="online">Online Activity</button>
+        <button class="statistics-tab" data-tab="raid">Raid Windows</button>
+      </div>
+      <section id="statsFarm" class="statistics-pane active">
+        <div class="range-row">
+          <label>Time Range:</label>
+          <select id="statsRange">
+            <option value="24">Last 24 hours</option>
+            <option value="72">Last 3 days</option>
+            <option value="168">Last 7 days</option>
+            <option value="336">Last 14 days</option>
+          </select>
+        </div>
+        <div class="chart-card">
+          <h3>Resource Farming Over Time</h3>
+          <div id="farmChart" class="chart-wrap"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Team Online Members</h3>
+          <div id="onlineLineChart" class="chart-wrap"></div>
+        </div>
+      </section>
+      <section id="statsOnline" class="statistics-pane">
+        <h3>Average Online Players by Hour</h3>
+        <p class="stats-subtitle">Shows when team members are typically online</p>
+        <div class="chart-card"><div id="hourlyChart" class="chart-wrap large"></div></div>
+        <div class="activity-legend"><span><i class="peak-dot"></i>Peak activity (50%+ online)</span><span><i class="normal-dot"></i>Normal activity</span></div>
+      </section>
+      <section id="statsRaid" class="statistics-pane">
+        <h3>Best Raid Windows</h3>
+        <p class="stats-subtitle">Times when the team has the fewest players online (best opportunity to raid)</p>
+        <div id="raidWindows" class="raid-window-list"></div>
+        <div class="history-note">Based on historical activity data. Results may vary.</div>
+      </section>
+    </div>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>
