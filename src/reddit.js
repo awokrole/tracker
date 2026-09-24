@@ -29,8 +29,9 @@ export async function getPage(config, statId, pageNumber) {
   const r = await fetch(url, {
     headers: {
       Authorization: normalizeAuthToken(authToken),
+      'X-Tenant-Id': process.env.REDDIT_TENANT_ID || 'reddit_play_rust',
       Accept: 'application/json',
-      'User-Agent': 'RustStatsDashboard/0.1'
+      'User-Agent': 'RustStatsDashboard/0.1.2'
     }
   });
   const raw = await r.text();
@@ -46,6 +47,8 @@ export async function getPage(config, statId, pageNumber) {
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(data?.results)) return data.results;
+  if (Array.isArray(data?.wipeStatsMeta?.leaderBoardEntrys)) return data.wipeStatsMeta.leaderBoardEntrys;
+  if (Array.isArray(data?.wipeStatsMeta?.leaderboardEntries)) return data.wipeStatsMeta.leaderboardEntries;
   return [];
 }
 
