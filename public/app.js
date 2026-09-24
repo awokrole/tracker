@@ -1,8 +1,14 @@
 const $ = s => document.querySelector(s);
 const fmt = n => new Intl.NumberFormat('pl-PL').format(Number(n||0));
 const statDefs = [
-  ['wood','🪵','Wood'],['metal','🪨','Metal'],['hqMetal','⚙️','HQ Metal'],['sulfur','🟡','Sulfur'],['stones','🪨','Stones'],['rockets','🚀','Rockets']
+  ['wood','/assets/icons/wood.png','Wood'],
+  ['metal','/assets/icons/metal.png','Metal Ore'],
+  ['hqMetal','/assets/icons/hq-metal.png','HQ Metal'],
+  ['sulfur','/assets/icons/sulfur.png','Sulfur Ore'],
+  ['stones','/assets/icons/stones.png','Stones'],
+  ['rockets','/assets/icons/rocket.png','Rockets']
 ];
+const icon = (src,label='',cls='rust-icon') => `<img class=\"${cls}\" src=\"${src}\" alt=\"${esc(label)}\" loading=\"lazy\">`;
 let teamsMeta = [];
 let lastSnapshot = { timestamp:null, teams:[] };
 let detailTeamId = null;
@@ -37,7 +43,7 @@ function render(snapshot){
       <div class="team-title"><h2>${esc(t.name)}</h2><span>${ago(snapshot.timestamp)}</span></div>
       <div class="muted">Created ${new Date(t.createdAt).toLocaleDateString('pl-PL')}</div>
       <div class="status-row"><span class="tracked">Tracked</span><button class="icon-btn team-stats" data-team-id="${esc(t.id)}" title="View Statistics">▥</button><button class="icon-btn team-edit" data-team-id="${esc(t.id)}" title="Team details">⚙</button></div>
-      <div class="stats">${statDefs.map(([k,i,l])=>`<div class="stat"><div class="stat-label"><span>${i}</span>${l}</div><strong>${fmt(t.stats?.[k])}</strong></div>`).join('')}</div>
+      <div class="stats">${statDefs.map(([k,i,l])=>`<div class="stat"><div class="stat-label">${icon(i,l)}<span>${l}</span></div><strong>${fmt(t.stats?.[k])}</strong></div>`).join('')}</div>
       <div class="separator"></div>
       <div class="members-head"><span>MEMBERS</span><b>${t.members.filter(m=>m.isOnline).length}/${t.members.length} online</b></div>
       <div class="members">${t.members.map(m=>`<div class="member"><span class="dot ${m.isOnline?'online':'offline'}" title="${m.isOnline?'Online':'Offline'}"></span>${avatar(m)}<span class="${m.isOnline?'member-online':''}" title="${esc(m.steamId)} · ${m.isOnline?'ONLINE':'offline'}">${esc(m.name||m.steamId)}</span></div>`).join('')}</div>
@@ -54,9 +60,10 @@ function render(snapshot){
 }
 function memberCard(m){
   const s=m.stats||{};
-  return `<article class="member-detail-card"><div class="member-detail-head"><div class="member-identity"><span class="dot ${m.isOnline?'online':'offline'}"></span>${avatar(m,true)}<div><strong>${esc(m.name||m.steamId)}</strong><small>${esc(m.steamId)}</small></div></div><button class="remove-member" data-steam-id="${esc(m.steamId)}">♙ Remove</button></div><div class="member-columns"><div><div class="section-kicker">🪵 FARM</div><div class="mini-grid"><span>Wood<b>${fmt(s.wood)}</b></span><span>Metal<b>${fmt(s.metal)}</b></span><span>HQ Metal<b>${fmt(s.hqMetal)}</b></span><span>Sulfur<b>${fmt(s.sulfur)}</b></span><span>Stones<b>${fmt(s.stones)}</b></span><span>Play Time<b>${fmtTime(s.playTime)}</b></span></div></div><div class="member-divider"><div class="section-kicker">💀 PVP</div><div class="mini-grid pvp-grid"><span>Kills<b>${fmt(s.kills)}</b></span><span>Deaths<b>${fmt(s.deaths)}</b></span><span>K/D<b>${kd(s.kills,s.deaths)}</b></span></div><div class="section-kicker raid-kicker">🔪 RAIDING</div><div class="mini-grid"><span>Rockets<b>${fmt(s.rockets)}</b></span><span>HV Rockets<b>${fmt(s.hvRockets)}</b></span><span>C4<b>${fmt(s.c4)}</b></span><span>Explosive Ammo<b>${fmt(s.explosiveAmmo)}</b></span></div></div></div></article>`;
+  const r=(src,label)=>icon(src,label,'mini-rust-icon');
+  return `<article class="member-detail-card"><div class="member-detail-head"><div class="member-identity"><span class="dot ${m.isOnline?'online':'offline'}"></span>${avatar(m,true)}<div><strong>${esc(m.name||m.steamId)}</strong><small>${esc(m.steamId)}</small></div></div><button class="remove-member" data-steam-id="${esc(m.steamId)}">Remove</button></div><div class="member-columns"><div><div class="section-kicker kicker-with-icon">${r('/assets/icons/wood.png','Farm')} FARM</div><div class="mini-grid"><span>Wood<b>${fmt(s.wood)}</b></span><span>Metal<b>${fmt(s.metal)}</b></span><span>HQ Metal<b>${fmt(s.hqMetal)}</b></span><span>Sulfur<b>${fmt(s.sulfur)}</b></span><span>Stones<b>${fmt(s.stones)}</b></span><span>Play Time<b>${fmtTime(s.playTime)}</b></span></div></div><div class="member-divider"><div class="section-kicker">PVP</div><div class="mini-grid pvp-grid"><span>Kills<b>${fmt(s.kills)}</b></span><span>Deaths<b>${fmt(s.deaths)}</b></span><span>K/D<b>${kd(s.kills,s.deaths)}</b></span></div><div class="section-kicker raid-kicker kicker-with-icon">${r('/assets/icons/rocket.png','Raiding')} RAIDING</div><div class="mini-grid"><span>Rockets<b>${fmt(s.rockets)}</b></span><span>HV Rockets<b>${fmt(s.hvRockets)}</b></span><span>C4<b>${fmt(s.c4)}</b></span><span>Explosive Ammo<b>${fmt(s.explosiveAmmo)}</b></span></div></div></div></article>`;
 }
-function renderTeamDetail(id){const t=snapshotTeam(id);if(!t)return;$('#detailTitle').textContent=t.name;$('#detailUpdated').textContent=ago(lastSnapshot.timestamp);$('#detailTotals').innerHTML=statDefs.map(([k,i,l])=>`<div class="detail-total"><span>${i}</span><small>${l}</small><strong>${fmt(t.stats?.[k])}</strong></div>`).join('');$('#detailMemberCount').textContent=`${t.members.length} members · ${t.members.filter(m=>m.isOnline).length} online`;$('#detailMembers').innerHTML=t.members.map(memberCard).join('')||'<div class="empty-detail">Brak członków.</div>';document.querySelectorAll('.remove-member').forEach(b=>b.onclick=async()=>removeMember(id,b.dataset.steamId));}
+function renderTeamDetail(id){const t=snapshotTeam(id);if(!t)return;$('#detailTitle').textContent=t.name;$('#detailUpdated').textContent=ago(lastSnapshot.timestamp);$('#detailTotals').innerHTML=statDefs.map(([k,i,l])=>`<div class="detail-total">${icon(i,l,'rust-icon rust-icon-lg')}<small>${l}</small><strong>${fmt(t.stats?.[k])}</strong></div>`).join('');$('#detailMemberCount').textContent=`${t.members.length} members · ${t.members.filter(m=>m.isOnline).length} online`;$('#detailMembers').innerHTML=t.members.map(memberCard).join('')||'<div class="empty-detail">Brak członków.</div>';document.querySelectorAll('.remove-member').forEach(b=>b.onclick=async()=>removeMember(id,b.dataset.steamId));}
 function openTeamDetail(id){detailTeamId=id;renderTeamDetail(id);$('#newMemberId').value='';$('#teamDetail').showModal();}
 async function removeMember(teamId,steamId){const meta=teamsMeta.find(t=>t.id===teamId);if(!meta)return;const member=meta.members.find(m=>m.steamId===steamId);if(!confirm(`Usunąć ${member?.name||steamId} z teamu?`))return;await updateTeam(teamId,{members:meta.members.filter(m=>m.steamId!==steamId)});showToast('Gracz usunięty z teamu.',{autoHide:true});}
 async function updateTeam(id,patch){const meta=teamsMeta.find(t=>t.id===id);if(!meta)return;await json(`/api/teams/${encodeURIComponent(id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:patch.name??meta.name,members:patch.members??meta.members})});await json('/api/stats/refresh',{method:'POST'});await load();}

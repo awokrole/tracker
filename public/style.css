@@ -22,3 +22,70 @@
 .team-stats{font-size:15px}.team-stats:hover{color:#49a2ff;text-shadow:0 0 12px rgba(73,162,255,.7)}
 .statistics-dialog{width:min(1180px,97vw);max-width:none;max-height:94vh;padding:0;border-radius:12px;overflow:hidden}.statistics-dialog::backdrop{background:rgba(0,0,0,.84);backdrop-filter:blur(2px)}.statistics-shell{max-height:94vh;overflow:auto;background:#1a1a1c}.statistics-head{padding:24px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid #303034;position:sticky;top:0;z-index:4;background:#1a1a1cf4;backdrop-filter:blur(8px)}.statistics-head h2{margin:0;font-size:26px}.statistics-head p{margin:8px 0 0;color:#9ca6b5}.statistics-tabs{display:flex;gap:12px;padding:0 24px;border-bottom:1px solid #303034}.statistics-tab{border:0;border-radius:0;background:transparent;color:#aeb5c2;padding:18px 20px 16px;border-bottom:2px solid transparent}.statistics-tab.active{color:#58a9ff;border-bottom-color:#2588ff}.statistics-pane{display:none;padding:24px}.statistics-pane.active{display:block}.statistics-pane h3{margin:0 0 6px}.stats-subtitle{color:#9aa3b2;margin:0 0 24px}.range-row{display:flex;align-items:center;gap:12px;margin-bottom:24px}.range-row label{color:#bcc4d1}.range-row select{background:#18181a;color:#f4f4f5;border:1px solid #34343a;border-radius:7px;padding:10px 14px}.chart-card{background:#141416;border:1px solid #343438;border-radius:10px;padding:18px;margin-bottom:24px}.chart-card h3{font-size:16px;margin-bottom:14px}.chart-wrap{min-height:310px;display:flex;flex-direction:column;justify-content:center}.chart-wrap.large{min-height:360px}.chart-svg{width:100%;height:300px;overflow:visible}.grid-line{stroke:#2d3035;stroke-dasharray:4 4}.axis-line{stroke:#6e7580;stroke-width:1}.axis-text{fill:#9098a6;font-size:11px}.chart-line{fill:none;stroke-width:2.2;vector-effect:non-scaling-stroke}.c-hqm{stroke:#3185ff}.c-metal{stroke:#8895aa}.c-stone{stroke:#d5d8df}.c-sulfur{stroke:#f0c419}.c-online{stroke:#37d67a}.chart-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:16px;margin-top:8px;color:#aeb5c2;font-size:13px}.legend-item{display:flex;align-items:center;gap:6px}.legend-swatch{width:18px;height:2px;display:inline-block}.legend-swatch.c-hqm{background:#3185ff}.legend-swatch.c-metal{background:#8895aa}.legend-swatch.c-stone{background:#d5d8df}.legend-swatch.c-sulfur{background:#f0c419}.legend-swatch.c-online{background:#37d67a}.chart-empty{min-height:220px;display:grid;place-items:center;color:#7f8998;text-align:center;padding:30px}.bar-chart{height:310px;display:grid;grid-template-columns:repeat(24,1fr);gap:4px;align-items:end;border-left:1px solid #5e6570;border-bottom:1px solid #5e6570;padding:16px 10px 0}.bar-col{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:8px}.bar-track{height:255px;width:70%;display:flex;align-items:flex-end}.bar{width:100%;min-height:0;border-radius:3px 3px 0 0;transition:height .3s}.bar.normal{background:#2d83f7}.bar.peak{background:#24d46c}.bar-col span{font-size:9px;color:#8992a0}.activity-legend{border-top:1px solid #303034;padding-top:16px;display:flex;gap:30px;color:#aab2c0;font-size:13px}.activity-legend span{display:flex;align-items:center;gap:8px}.activity-legend i{width:12px;height:12px;border-radius:3px}.peak-dot{background:#24d46c}.normal-dot{background:#2d83f7}.raid-window-list{display:flex;flex-direction:column;gap:12px;margin-top:24px}.raid-window{display:grid;grid-template-columns:44px 1fr 130px;align-items:center;gap:18px;background:#151516;border:1px solid #343438;border-radius:9px;padding:18px}.raid-window.best{border-color:#1fc968;background:linear-gradient(90deg,rgba(31,201,104,.08),transparent 60%)}.raid-window>strong{font-size:22px;color:#74829a}.raid-window.best>strong{color:#2bdf7a}.raid-window div:nth-child(2){display:flex;flex-direction:column;gap:5px}.raid-window b{font-size:18px}.raid-window small{color:#8f99aa}.raid-meter{height:8px;background:#08090a;border-radius:20px;overflow:hidden}.raid-meter i{display:block;height:100%;background:#2d83f7;border-radius:20px}.raid-window.best .raid-meter i{background:#24d46c}.history-note{margin-top:18px;border:1px solid #6c5612;background:#30270b;color:#f0c419;border-radius:7px;padding:14px;font-size:13px}
 @media(max-width:760px){.statistics-head{flex-direction:column;gap:14px}.statistics-tabs{overflow:auto}.statistics-pane{padding:16px}.raid-window{grid-template-columns:38px 1fr}.raid-meter{grid-column:1/-1}.bar-chart{overflow-x:auto;min-width:760px}.chart-card{overflow:auto}.chart-svg{min-width:720px}}
+
+/* v0.2.0 — Rust industrial visual refresh */
+:root{
+  --rust-orange:#d64b2a;
+  --rust-orange-2:#ff6a32;
+  --rust-blue:#1b75d0;
+  --panel:rgba(19,20,21,.88);
+  --panel-2:rgba(12,13,14,.78);
+  --edge:rgba(166,173,182,.18);
+}
+html{background:#090a0b}
+body{
+  position:relative;
+  background:#090a0b url('/assets/rust-industrial-bg.png') center top/cover fixed no-repeat;
+  color:#f4f5f7;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:linear-gradient(180deg,rgba(4,5,6,.34),rgba(4,5,6,.68) 45%,rgba(4,5,6,.82)),radial-gradient(circle at 82% 12%,rgba(210,74,34,.16),transparent 32%);
+  backdrop-filter:saturate(.88);
+}
+header{
+  background:linear-gradient(180deg,rgba(17,18,19,.94),rgba(14,15,16,.86));
+  border-bottom:1px solid rgba(214,75,42,.28);
+  box-shadow:0 12px 34px rgba(0,0,0,.35);
+  backdrop-filter:blur(14px);
+}
+header h1{letter-spacing:.01em;text-shadow:0 1px 12px rgba(0,0,0,.55)}
+header p{color:#9fb4c8}
+button{background:rgba(18,19,20,.88);border-color:rgba(255,255,255,.13);box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
+button:hover{border-color:rgba(214,75,42,.65);background:rgba(39,27,23,.92)}
+.primary{background:linear-gradient(180deg,#e25937,#b93622);border-color:#ef6a45;box-shadow:0 0 22px rgba(214,75,42,.18)}
+.primary:hover{background:linear-gradient(180deg,#ee6843,#c84027)}
+.grid{max-width:1540px}
+.team-card{
+  background:linear-gradient(180deg,rgba(25,26,27,.91),rgba(17,18,19,.93));
+  border-color:rgba(255,255,255,.13);
+  box-shadow:0 14px 42px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.025);
+  backdrop-filter:blur(9px);
+}
+.team-card::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.025),transparent 28%,rgba(214,75,42,.025));}
+.team-card:hover,.team-card:focus-visible{border-color:#236db4;box-shadow:0 0 0 1px rgba(23,111,205,.42),0 0 30px rgba(12,91,183,.24),0 18px 46px rgba(0,0,0,.5)}
+.team-card::before{background:linear-gradient(115deg,#0b4e9c,#1f8cff,#114a8d,#d94b2b,#0b4e9c);background-size:350% 350%}
+.stat,.detail-total,.member-detail-card,.chart-card,.raid-window{
+  background:linear-gradient(180deg,rgba(13,14,15,.76),rgba(18,19,20,.82));
+  border-color:rgba(255,255,255,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+}
+.stat{min-height:112px;padding:14px}
+.stat-label{font-size:12px;color:#8ea0b7;margin-bottom:6px;gap:10px}
+.stat strong{font-size:22px;letter-spacing:.01em}
+.rust-icon{width:34px;height:34px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 3px 5px rgba(0,0,0,.55))}
+.rust-icon-lg{width:52px;height:52px}
+.mini-rust-icon{width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+.kicker-with-icon{display:flex;align-items:center;gap:7px}
+.separator{border-color:rgba(255,255,255,.1)}
+.tracked{background:rgba(12,65,36,.55);border-color:rgba(40,192,96,.5);box-shadow:0 0 16px rgba(27,171,82,.08)}
+dialog{background:rgba(20,21,22,.96);border-color:rgba(255,255,255,.16);box-shadow:0 26px 90px rgba(0,0,0,.66)}
+dialog::backdrop{background:rgba(0,0,0,.76);backdrop-filter:blur(5px)}
+.team-detail-shell,.statistics-shell{background:linear-gradient(180deg,rgba(23,24,25,.98),rgba(15,16,17,.98))}
+.detail-header,.statistics-head{background:rgba(19,20,21,.93);border-color:rgba(214,75,42,.2)}
+.toast{background:rgba(24,20,17,.95);border-color:rgba(226,116,55,.42);box-shadow:0 15px 45px rgba(0,0,0,.45);backdrop-filter:blur(8px)}
+.login-body{background:#090a0b url('/assets/rust-industrial-bg.png') center/cover fixed no-repeat}
+.login-body::before{content:"";position:fixed;inset:0;background:rgba(4,5,6,.58);z-index:-1}
+.login-card{background:rgba(18,19,20,.91);border-color:rgba(214,75,42,.28);backdrop-filter:blur(12px)}
+@media(max-width:720px){body{background-attachment:scroll;background-position:55% top}.rust-icon{width:30px;height:30px}}
+.brand-wrap,.login-brand{display:flex;align-items:center;gap:12px}.brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:7px;background:linear-gradient(145deg,#e65b39,#a92e1c);color:#fff;font-weight:900;font-size:22px;border:1px solid rgba(255,255,255,.18);box-shadow:0 0 22px rgba(214,75,42,.2),inset 0 1px 0 rgba(255,255,255,.18)}.login-brand{margin-bottom:8px}.login-brand h1{margin:0}
