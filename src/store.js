@@ -11,7 +11,8 @@ const defaults = {
     battlemetricsServerId: '',
     authToken: ''
   },
-  teams: []
+  teams: [],
+  history: []
 };
 
 function ensure() {
@@ -25,7 +26,8 @@ export function readStore() {
     const x = JSON.parse(fs.readFileSync(file, 'utf8'));
     return {
       config: { ...defaults.config, ...(x.config || {}) },
-      teams: Array.isArray(x.teams) ? x.teams : []
+      teams: Array.isArray(x.teams) ? x.teams : [],
+      history: Array.isArray(x.history) ? x.history : []
     };
   } catch {
     return structuredClone(defaults);

@@ -33,7 +33,7 @@ function headers(config) {
     Authorization: normalizeAuthToken(config.authToken),
     'X-Tenant-Id': process.env.REDDIT_TENANT_ID || 'reddit_play_rust',
     Accept: 'application/json',
-    'User-Agent': 'RustStatsDashboard/0.1.8'
+    'User-Agent': 'RustStatsDashboard/0.1.9'
   };
 }
 

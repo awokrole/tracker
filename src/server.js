@@ -108,10 +108,36 @@ app.put('/api/teams/:id', auth, (req, res) => {
   if (Array.isArray(req.body.members)) t.members = req.body.members.map(m => ({ steamId: String(m.steamId || '').trim(), name: String(m.name || '').trim().slice(0,60) })).filter(m => /^7656\d{13}$/.test(m.steamId));
   writeStore(db); res.json(t);
 });
-app.delete('/api/teams/:id', auth, (req,res) => { const db=readStore(); db.teams=db.teams.filter(x=>x.id!==req.params.id); writeStore(db); res.json({ok:true}); });
+app.delete('/api/teams/:id', auth, (req,res) => { const db=readStore(); db.teams=db.teams.filter(x=>x.id!==req.params.id); db.history=(db.history||[]).map(h=>{ if(h.teams) delete h.teams[req.params.id]; return h; }); writeStore(db); res.json({ok:true}); });
+
+const HISTORY_SAMPLE_MS = Math.max(60_000, Number(process.env.HISTORY_SAMPLE_MS || 300_000));
+const HISTORY_MAX_DAYS = Math.max(1, Number(process.env.HISTORY_MAX_DAYS || 14));
 
 let lastSnapshot = { timestamp: null, teams: [], error: null };
 const clients = new Set();
+
+function recordHistory(snapshot) {
+  if (!snapshot?.timestamp || snapshot?.error) return;
+  const db = readStore();
+  const at = new Date(snapshot.timestamp).getTime();
+  const last = db.history.at(-1);
+  if (last && at - new Date(last.at).getTime() < HISTORY_SAMPLE_MS) return;
+
+  const teams = Object.fromEntries((snapshot.teams || []).map(t => [t.id, {
+    stats: {
+      wood: Number(t.stats?.wood || 0), metal: Number(t.stats?.metal || 0), hqMetal: Number(t.stats?.hqMetal || 0),
+      sulfur: Number(t.stats?.sulfur || 0), stones: Number(t.stats?.stones || 0), rockets: Number(t.stats?.rockets || 0),
+      hvRockets: Number(t.stats?.hvRockets || 0), c4: Number(t.stats?.c4 || 0), explosiveAmmo: Number(t.stats?.explosiveAmmo || 0)
+    },
+    online: (t.members || []).filter(m => m.isOnline).length,
+    total: (t.members || []).length
+  }]));
+  db.history.push({ at: snapshot.timestamp, teams });
+  const cutoff = Date.now() - HISTORY_MAX_DAYS * 86400_000;
+  db.history = db.history.filter(x => new Date(x.at).getTime() >= cutoff);
+  writeStore(db);
+}
+
 
 async function buildSnapshot() {
   const db = readStore();
@@ -147,7 +173,7 @@ async function buildSnapshot() {
   };
 }
 async function refresh() {
-  try { lastSnapshot = await buildSnapshot(); }
+  try { lastSnapshot = await buildSnapshot(); recordHistory(lastSnapshot); }
   catch (e) { lastSnapshot = { ...lastSnapshot, timestamp: new Date().toISOString(), error: e.message || String(e) }; }
   const msg = `data: ${JSON.stringify(lastSnapshot)}\n\n`;
   for (const res of clients) res.write(msg);
@@ -156,6 +182,18 @@ setInterval(refresh, 30_000).unref();
 
 app.get('/api/stats', auth, async (req,res) => { if (!lastSnapshot.timestamp) await refresh(); res.json(lastSnapshot); });
 app.post('/api/stats/refresh', auth, async (req,res) => { clearPageCache(); await refresh(); res.json(lastSnapshot); });
+app.get('/api/teams/:id/history', auth, (req, res) => {
+  const hours = Math.max(1, Math.min(HISTORY_MAX_DAYS * 24, Number(req.query.hours || 24)));
+  const cutoff = Date.now() - hours * 3600_000;
+  const db = readStore();
+  const team = db.teams.find(t => t.id === req.params.id);
+  if (!team) return res.status(404).json({ error: 'NOT_FOUND' });
+  const rows = db.history
+    .filter(x => new Date(x.at).getTime() >= cutoff && x.teams?.[req.params.id])
+    .map(x => ({ at: x.at, ...x.teams[req.params.id] }));
+  res.json({ teamId: team.id, teamName: team.name, hours, rows });
+});
+
 app.get('/api/debug/player/:steamId', auth, async (req, res) => {
   const steamId = String(req.params.steamId || '').trim();
   if (!/^7656\d{13}$/.test(steamId)) return res.status(400).json({ error: 'Nieprawidłowy SteamID64.' });
