@@ -14,9 +14,9 @@ export const STAT_IDS = {
   kills: 'official_kill_player'
 };
 
-const PAGE_CACHE_TTL_MS = Number(process.env.REDDIT_PAGE_CACHE_TTL_MS || 60_000);
-const DEFAULT_MAX_PAGES = Number(process.env.REDDIT_MAX_PAGES || 500);
-const pageCache = new Map();
+const SAVED_CACHE_TTL_MS = Number(process.env.REDDIT_SAVED_CACHE_TTL_MS || 30_000);
+const BATCH_SIZE = Math.max(1, Math.min(50, Number(process.env.REDDIT_SAVED_BATCH_SIZE || 25)));
+const savedCache = new Map();
 
 export function normalizeAuthToken(input) {
   let t = String(input || '').trim();
@@ -26,7 +26,109 @@ export function normalizeAuthToken(input) {
   return t ? `Bearer ${t}` : '';
 }
 
-function extractRows(data) {
+function headers(config) {
+  return {
+    Authorization: normalizeAuthToken(config.authToken),
+    'X-Tenant-Id': process.env.REDDIT_TENANT_ID || 'reddit_play_rust',
+    Accept: 'application/json',
+    'User-Agent': 'RustStatsDashboard/0.1.4'
+  };
+}
+
+function requireConfig(config) {
+  if (!config?.server || !config?.wipeDate || !config?.authToken) {
+    throw new Error('Brak konfiguracji Server/Wipe Date/Auth Token.');
+  }
+}
+
+function savedCacheKey(config, ids) {
+  return [config.server, config.wipeDate, [...ids].sort().join(',')].join('|');
+}
+
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+function extractSavedRows(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.results)) return data.results;
+  if (Array.isArray(data?.players)) return data.players;
+  if (Array.isArray(data?.saved)) return data.saved;
+  return [];
+}
+
+function userIdOf(row) {
+  return String(
+    row?.userId ??
+    row?.steamId ??
+    row?.user?.userId ??
+    row?.user?.steamId ??
+    row?.user?.authProviders?.steam?.userId ??
+    row?.authProviders?.steam?.userId ??
+    ''
+  );
+}
+
+function statsOf(row) {
+  return row?.stats || row?.statistics || row?.playerStats || row?.values || {};
+}
+
+function steamProfileOf(row) {
+  return row?.user?.authProviders?.steam || row?.authProviders?.steam || row?.steam || {};
+}
+
+export async function fetchSavedPlayers(config, memberIds, { bypassCache = false } = {}) {
+  requireConfig(config);
+  const ids = [...new Set((memberIds || []).map(String).filter(Boolean))];
+  const result = new Map();
+  if (!ids.length) return result;
+
+  for (const batch of chunk(ids, BATCH_SIZE)) {
+    const key = savedCacheKey(config, batch);
+    const cached = savedCache.get(key);
+    let rows;
+    if (!bypassCache && cached && Date.now() - cached.at < SAVED_CACHE_TTL_MS) {
+      rows = cached.rows;
+    } else {
+      const qs = batch.map(id => `userIds=${encodeURIComponent(id)}`).join('&');
+      const url = `${API}/stats/players/stats/${encodeURIComponent(config.server)}/wipe/${encodeURIComponent(config.wipeDate)}/saved?${qs}`;
+      const r = await fetch(url, { headers: headers(config) });
+      const raw = await r.text();
+      if (r.status === 401 || r.status === 403) throw new Error(`Auth Token odrzucony przez Reddit PlayRust (HTTP ${r.status}).`);
+      if (!r.ok) {
+        const detail = raw.replace(/\s+/g, ' ').trim().slice(0, 450);
+        throw new Error(`Reddit PlayRust API HTTP ${r.status} | endpoint=saved | server=${config.server} | wipe=${config.wipeDate}${detail ? ` | ${detail}` : ''}`);
+      }
+      let data;
+      try { data = raw ? JSON.parse(raw) : []; }
+      catch { throw new Error('Reddit PlayRust API zwróciło nieprawidłowy JSON z endpointu saved.'); }
+      rows = extractSavedRows(data);
+      savedCache.set(key, { at: Date.now(), rows });
+    }
+
+    for (const row of rows) {
+      const userId = userIdOf(row);
+      if (!userId) continue;
+      const steam = steamProfileOf(row);
+      result.set(userId, {
+        userId,
+        stats: statsOf(row),
+        displayName: String(steam.displayName || row?.displayName || row?.user?.displayName || '').trim(),
+        profilePicture: String(steam.profilePicture || row?.profilePicture || row?.user?.profilePicture || '').trim(),
+        raw: row
+      });
+    }
+  }
+
+  return result;
+}
+
+// Zostawione do Test API, bo dobrze potwierdza konfigurację server/wipe/token.
+function extractLeaderboardRows(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.items)) return data.items;
@@ -36,73 +138,22 @@ function extractRows(data) {
   return [];
 }
 
-function pageCacheKey(config, statId, pageNumber) {
-  return [config.server, config.wipeDate, statId, pageNumber].join('|');
-}
-
-export async function getPage(config, statId, pageNumber, { bypassCache = false } = {}) {
-  const { server, wipeDate, authToken } = config;
-  if (!server || !wipeDate || !authToken) throw new Error('Brak konfiguracji Server/Wipe Date/Auth Token.');
-
-  const key = pageCacheKey(config, statId, pageNumber);
-  const cached = pageCache.get(key);
-  if (!bypassCache && cached && Date.now() - cached.at < PAGE_CACHE_TTL_MS) return cached.rows;
-
-  const url = `${API}/stats/leaderboard/${encodeURIComponent(server)}/wipe/${encodeURIComponent(wipeDate)}/stat/${encodeURIComponent(statId)}?pageNumber=${pageNumber}`;
-  const r = await fetch(url, {
-    headers: {
-      Authorization: normalizeAuthToken(authToken),
-      'X-Tenant-Id': process.env.REDDIT_TENANT_ID || 'reddit_play_rust',
-      Accept: 'application/json',
-      'User-Agent': 'RustStatsDashboard/0.1.3'
-    }
-  });
+export async function getPage(config, statId, pageNumber) {
+  requireConfig(config);
+  const url = `${API}/stats/leaderboard/${encodeURIComponent(config.server)}/wipe/${encodeURIComponent(config.wipeDate)}/stat/${encodeURIComponent(statId)}?pageNumber=${pageNumber}`;
+  const r = await fetch(url, { headers: headers(config) });
   const raw = await r.text();
   if (r.status === 401 || r.status === 403) throw new Error(`Auth Token odrzucony przez Reddit PlayRust (HTTP ${r.status}).`);
   if (!r.ok) {
     const detail = raw.replace(/\s+/g, ' ').trim().slice(0, 350);
-    throw new Error(`Reddit PlayRust API HTTP ${r.status} | stat=${statId} | server=${server} | wipe=${wipeDate}${detail ? ` | ${detail}` : ''}`);
+    throw new Error(`Reddit PlayRust API HTTP ${r.status} | stat=${statId} | server=${config.server} | wipe=${config.wipeDate}${detail ? ` | ${detail}` : ''}`);
   }
   let data;
   try { data = raw ? JSON.parse(raw) : []; }
   catch { throw new Error(`Reddit PlayRust API zwróciło nieprawidłowy JSON dla stat=${statId}.`); }
-
-  const rows = extractRows(data);
-  pageCache.set(key, { at: Date.now(), rows });
-  return rows;
-}
-
-export async function fetchValuesForMembers(config, statId, memberIds, maxPages = DEFAULT_MAX_PAGES) {
-  const wanted = new Set(memberIds.map(String));
-  const out = new Map();
-  if (!wanted.size) return out;
-
-  let scannedPages = 0;
-  let scannedRows = 0;
-  let consecutiveEmptyPages = 0;
-
-  for (let page = 0; page < maxPages && out.size < wanted.size; page++) {
-    const rows = await getPage(config, statId, page);
-    scannedPages++;
-    scannedRows += rows.length;
-
-    if (!rows.length) {
-      consecutiveEmptyPages++;
-      if (consecutiveEmptyPages >= 1) break;
-      continue;
-    }
-    consecutiveEmptyPages = 0;
-
-    for (const row of rows) {
-      const id = String(row.userId ?? row.steamId ?? '');
-      if (wanted.has(id)) out.set(id, Number(row.value || 0));
-    }
-  }
-
-  out.scanInfo = { pages: scannedPages, rows: scannedRows, found: out.size, wanted: wanted.size };
-  return out;
+  return extractLeaderboardRows(data);
 }
 
 export function clearPageCache() {
-  pageCache.clear();
+  savedCache.clear();
 }

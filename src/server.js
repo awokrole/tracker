@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readStore, writeStore } from './store.js';
-import { STAT_IDS, fetchValuesForMembers, getPage, normalizeAuthToken, clearPageCache } from './reddit.js';
+import { STAT_IDS, fetchSavedPlayers, getPage, normalizeAuthToken, clearPageCache } from './reddit.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -117,23 +117,28 @@ async function buildSnapshot() {
   const db = readStore();
   const teams = db.teams.filter(t => t.tracked);
   const ids = [...new Set(teams.flatMap(t => t.members.map(m => m.steamId)))];
-  const displayStats = ['wood','metal','hqMetal','sulfur','stones','rockets'];
-  const raidStats = ['hvRockets','c4','explosiveAmmo','satchels','kills'];
-  const maps = {};
-  const scan = {};
-  for (const key of [...displayStats, ...raidStats]) {
-    maps[key] = await fetchValuesForMembers(db.config, STAT_IDS[key], ids);
-    scan[key] = maps[key].scanInfo || null;
-  }
+  const allStats = ['wood','metal','hqMetal','sulfur','stones','rockets','hvRockets','c4','explosiveAmmo','satchels','kills'];
+  const players = await fetchSavedPlayers(db.config, ids);
+
+  const value = (player, key) => Number(player?.stats?.[STAT_IDS[key]] || 0);
+
   return {
     timestamp: new Date().toISOString(),
     teams: teams.map(t => ({
       ...t,
-      stats: Object.fromEntries([...displayStats, ...raidStats].map(k => [k, t.members.reduce((sum,m)=>sum+(maps[k].get(m.steamId)||0),0)])),
-      members: t.members.map(m => ({ ...m, stats: Object.fromEntries([...displayStats, ...raidStats].map(k => [k, maps[k].get(m.steamId)||0])) }))
+      stats: Object.fromEntries(allStats.map(k => [k, t.members.reduce((sum, m) => sum + value(players.get(m.steamId), k), 0)])),
+      members: t.members.map(m => {
+        const p = players.get(m.steamId);
+        return {
+          ...m,
+          name: m.name || p?.displayName || m.steamId,
+          profilePicture: p?.profilePicture || '',
+          stats: Object.fromEntries(allStats.map(k => [k, value(p, k)]))
+        };
+      })
     })),
     error: null,
-    scan
+    source: { endpoint: 'saved', requestedPlayers: ids.length, returnedPlayers: players.size }
   };
 }
 async function refresh() {
