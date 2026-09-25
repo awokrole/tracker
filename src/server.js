@@ -98,6 +98,22 @@ function normalizeTeam(team, config) {
 function validMember(provider, m) {
   return provider === 'rustoria' ? /^[a-f0-9]{24}$/i.test(m.rustoriaId || '') : /^7656\d{13}$/.test(m.steamId || '');
 }
+
+function pairingPublicView(x) {
+  if (!x) return null;
+  return {
+    id: x.id, provider: x.provider, server: x.server, status: x.status || 'disconnected',
+    createdAt: x.createdAt || null, pairedAt: x.pairedAt || null, lastHeartbeatAt: x.lastHeartbeatAt || null,
+    deviceName: x.deviceName || '', playerId: x.playerId || '', steamId: x.steamId || '',
+    sessionExpiresAt: x.sessionExpiresAt || null
+  };
+}
+function pairKey(provider, server) { return `${provider === 'rustoria' ? 'rustoria' : 'reddit'}|${String(server || '').trim()}`; }
+function findPairing(db, provider, server) {
+  const key = pairKey(provider, server);
+  return (db.rustPlusPairings || []).find(x => pairKey(x.provider, x.server) === key) || null;
+}
+function hashPairToken(token) { return crypto.createHash('sha256').update(String(token || '')).digest('hex'); }
 function normalizeMembers(provider, input) {
   const arr = Array.isArray(input) ? input : [];
   return arr.map(m => provider === 'rustoria'
@@ -168,6 +184,82 @@ app.post('/api/config/test', auth, async (req, res) => {
 app.get('/api/providers/rustoria/servers', auth, async (req, res) => {
   try { res.json(await tryListRustoriaServers(readStore().config)); }
   catch (e) { res.status(400).json({ error: e.message || String(e) }); }
+});
+
+// Rust+ pairing is stored per provider/server, not per team.
+app.get('/api/rustplus/pairings', auth, (req, res) => {
+  const db = readStore();
+  const provider = req.query.provider === 'rustoria' ? 'rustoria' : 'reddit';
+  const server = String(req.query.server || '').trim();
+  if (!server) return res.json({ pairing: null });
+  res.json({ pairing: pairingPublicView(findPairing(db, provider, server)) });
+});
+
+app.post('/api/rustplus/pairings/session', auth, (req, res) => {
+  const db = readStore();
+  db.rustPlusPairings ||= [];
+  const provider = req.body.provider === 'rustoria' ? 'rustoria' : 'reddit';
+  const server = String(req.body.server || '').trim();
+  if (!server) return res.status(400).json({ error: 'Najpierw wybierz konkretny server.' });
+  const token = crypto.randomBytes(24).toString('base64url');
+  const now = new Date();
+  const expires = new Date(Date.now() + 10 * 60_000);
+  let pairing = findPairing(db, provider, server);
+  if (!pairing) {
+    pairing = { id: crypto.randomUUID(), provider, server, createdAt: now.toISOString() };
+    db.rustPlusPairings.push(pairing);
+  }
+  pairing.status = 'awaiting_pair';
+  pairing.sessionTokenHash = hashPairToken(token);
+  pairing.sessionExpiresAt = expires.toISOString();
+  pairing.lastHeartbeatAt = null;
+  writeStore(db);
+  const completeUrl = `${req.protocol}://${req.get('host')}/api/rustplus/pairings/complete`;
+  res.json({ pairing: pairingPublicView(pairing), token, completeUrl, expiresAt: expires.toISOString() });
+});
+
+// Endpoint for the local Rust+ pairing app. It intentionally uses a one-time token instead of dashboard login.
+app.post('/api/rustplus/pairings/complete', (req, res) => {
+  const token = String(req.body.token || '').trim();
+  if (!token) return res.status(400).json({ error: 'PAIR_TOKEN_REQUIRED' });
+  const db = readStore();
+  const hash = hashPairToken(token);
+  const pairing = (db.rustPlusPairings || []).find(x => x.sessionTokenHash === hash);
+  if (!pairing) return res.status(404).json({ error: 'PAIR_SESSION_NOT_FOUND' });
+  if (!pairing.sessionExpiresAt || new Date(pairing.sessionExpiresAt).getTime() < Date.now()) return res.status(410).json({ error: 'PAIR_SESSION_EXPIRED' });
+  pairing.status = 'paired';
+  pairing.pairedAt = new Date().toISOString();
+  pairing.lastHeartbeatAt = pairing.pairedAt;
+  pairing.deviceName = String(req.body.deviceName || req.body.device || '').trim().slice(0, 80);
+  pairing.playerId = String(req.body.playerId || '').trim().slice(0, 80);
+  pairing.steamId = String(req.body.steamId || '').trim().slice(0, 32);
+  pairing.pairingData = req.body.pairingData && typeof req.body.pairingData === 'object' ? req.body.pairingData : {};
+  delete pairing.sessionTokenHash;
+  delete pairing.sessionExpiresAt;
+  writeStore(db);
+  res.json({ ok: true, pairing: pairingPublicView(pairing) });
+});
+
+app.post('/api/rustplus/pairings/heartbeat', (req, res) => {
+  const token = String(req.body.token || '').trim();
+  if (!token) return res.status(400).json({ error: 'PAIR_TOKEN_REQUIRED' });
+  const db = readStore();
+  const hash = hashPairToken(token);
+  const pairing = (db.rustPlusPairings || []).find(x => x.runtimeTokenHash === hash);
+  if (!pairing) return res.status(404).json({ error: 'PAIRING_NOT_FOUND' });
+  pairing.lastHeartbeatAt = new Date().toISOString();
+  pairing.status = 'paired';
+  writeStore(db);
+  res.json({ ok: true });
+});
+
+app.delete('/api/rustplus/pairings/:id', auth, (req, res) => {
+  const db = readStore();
+  const before = (db.rustPlusPairings || []).length;
+  db.rustPlusPairings = (db.rustPlusPairings || []).filter(x => x.id !== req.params.id);
+  if (db.rustPlusPairings.length === before) return res.status(404).json({ error: 'PAIRING_NOT_FOUND' });
+  writeStore(db);
+  res.json({ ok: true });
 });
 
 app.get('/api/teams', auth, (req, res) => {
@@ -372,4 +464,4 @@ app.get('/api/stats/live', auth, (req,res) => {
   req.on('close',()=>clients.delete(res));
 });
 
-app.listen(port, '0.0.0.0', () => console.log(`Rust Stats Dashboard v0.4.0 listening on :${port}`));
+app.listen(port, '0.0.0.0', () => console.log(`Awok Rust Tracker v0.5.1 listening on :${port}`));

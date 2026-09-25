@@ -18,7 +18,8 @@ const defaults = {
     rustoriaApiKey: ''
   },
   teams: [],
-  history: []
+  history: [],
+  rustPlusPairings: []
 };
 
 function ensure() {
@@ -33,7 +34,8 @@ export function readStore() {
     return {
       config: { ...defaults.config, ...(x.config || {}) },
       teams: Array.isArray(x.teams) ? x.teams : [],
-      history: Array.isArray(x.history) ? x.history : []
+      history: Array.isArray(x.history) ? x.history : [],
+      rustPlusPairings: Array.isArray(x.rustPlusPairings) ? x.rustPlusPairings : []
     };
   } catch {
     return structuredClone(defaults);
