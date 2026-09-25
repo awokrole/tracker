@@ -331,3 +331,11 @@ dialog::backdrop{background:rgba(0,0,0,.76);backdrop-filter:blur(3px)}
 .create-source b{color:#fff}.create-source span{color:#91a8cf;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .extra-pvp{margin-top:12px}
 @media(max-width:900px){.source-selectors{grid-template-columns:1fr;width:100%}}
+
+/* v0.4.3 — Rustoria activity-based presence */
+.dot.active{background:#22d36f;box-shadow:0 0 14px rgba(34,211,111,.55)}
+.dot.recent{background:#f3b63f;box-shadow:0 0 12px rgba(243,182,63,.4)}
+.dot.warming{background:#58a6ff;box-shadow:0 0 10px rgba(88,166,255,.35)}
+.dot.inactive{background:#667287;box-shadow:0 0 0 4px rgba(102,114,135,.08)}
+.activity-note{display:block;color:#8194b7;font-size:11px;margin-top:2px;font-weight:600;letter-spacing:0}
+.member-online .activity-note{color:#6fdc9e}
