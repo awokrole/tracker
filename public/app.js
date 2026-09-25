@@ -24,6 +24,8 @@ let activeServer = localStorage.getItem(`rustdash.server.${activeProvider}`) || 
 let appConfig = null;
 let rustoriaServers = [];
 let currentView = 'home';
+let rustPlusPairing = null;
+let rustPlusSessionInfo = null;
 
 function ago(iso){ if(!iso)return 'Waiting for data'; const s=Math.max(0,Math.floor((Date.now()-new Date(iso))/1000)); return s<10?'Updated just now':s<60?`Updated ${s}s ago`:`Updated ${Math.floor(s/60)}m ago`; }
 function createdAgo(iso){ if(!iso)return 'Created recently'; const d=Math.max(0,Math.floor((Date.now()-new Date(iso))/86400000)); return d===0?'Created today':d===1?'Created 1 day ago':`Created ${d} days ago`; }
@@ -68,6 +70,7 @@ function showHome(){
   searchTerm='';
   if($('#teamSearch')) $('#teamSearch').value='';
   renderProviderHomeCounts();
+  if($('#rustPlusPanel'))$('#rustPlusPanel').hidden=true;
 }
 function openProvider(provider){
   currentView='teams';
@@ -78,6 +81,7 @@ function openProvider(provider){
   $('#providerHome').hidden=true;
   $('#teamsView').hidden=false;
   render(lastSnapshot);
+  loadRustPlusPairing().catch(()=>{});
 }
 
 function matchesSearch(team){if(!searchTerm)return true;const q=searchTerm.toLowerCase();if((team.name||'').toLowerCase().includes(q))return true;return (team.members||[]).some(m=>(m.name||'').toLowerCase().includes(q)||String(memberId(m,team.provider)||'').toLowerCase().includes(q));}
@@ -157,6 +161,56 @@ async function updateTeam(id,patch){const meta=teamsMeta.find(t=>t.id===id);if(!
 async function json(url,opt){const r=await fetch(url,opt);if(r.status===401){location='/login';return;}const j=await r.json();if(!r.ok)throw new Error(j.error||'Błąd');return j;}
 
 function serverStorageKey(provider){return `rustdash.server.${provider==='rustoria'?'rustoria':'reddit'}`;}
+async function loadRustPlusPairing(){
+  const panel=$('#rustPlusPanel');
+  if(!panel)return;
+  if(currentView!=='teams'||!activeServer){panel.hidden=true;rustPlusPairing=null;return;}
+  panel.hidden=false;
+  try{
+    const data=await json(`/api/rustplus/pairings?provider=${encodeURIComponent(activeProvider)}&server=${encodeURIComponent(activeServer)}`);
+    rustPlusPairing=data.pairing||null;
+  }catch(e){rustPlusPairing=null;showToast(e.message);}
+  renderRustPlusPanel();
+}
+function renderRustPlusPanel(){
+  const panel=$('#rustPlusPanel');if(!panel)return;
+  if(!activeServer){panel.hidden=true;return;}
+  panel.hidden=false;
+  const p=rustPlusPairing;
+  const status=p?.status||'disconnected';
+  $('#rustPlusTitle').textContent=p?`Rust+ · ${activeServer}`:`Rust+ · ${activeServer}`;
+  $('#rustPlusStatus').textContent=status==='paired'?'Connected':status==='awaiting_pair'?'Waiting for pairing':'Disconnected';
+  $('#rustPlusStatus').className=`rustplus-status ${status==='paired'?'paired':status==='awaiting_pair'?'waiting':'disconnected'}`;
+  const parts=[providerLabel(activeProvider),activeServer];
+  if(p?.deviceName)parts.push(p.deviceName);
+  if(p?.pairedAt)parts.push(`paired ${ago(p.pairedAt).replace('Updated ','')}`);
+  $('#rustPlusMeta').textContent=parts.join(' · ');
+  $('#rustPlusPairBtn').textContent=status==='paired'?'Re-pair Rust+':'Pair Rust+';
+  $('#rustPlusUnpairBtn').hidden=!p;
+  $('#rustPlusCopyBtn').hidden=!rustPlusSessionInfo;
+  $('#rustPlusSession').hidden=!rustPlusSessionInfo;
+  if(rustPlusSessionInfo){$('#rustPlusToken').textContent=rustPlusSessionInfo.token;$('#rustPlusCallback').textContent=rustPlusSessionInfo.completeUrl;}
+}
+async function startRustPlusPairing(){
+  if(!activeServer){showToast('Najpierw wybierz konkretny server.');return;}
+  try{
+    rustPlusSessionInfo=await json('/api/rustplus/pairings/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:activeProvider,server:activeServer})});
+    rustPlusPairing=rustPlusSessionInfo.pairing;
+    renderRustPlusPanel();
+    showToast('Sesja Rust+ utworzona. Token jest ważny 10 minut.',{autoHide:true});
+  }catch(e){showToast(e.message);}
+}
+async function unpairRustPlus(){
+  if(!rustPlusPairing?.id)return;
+  if(!confirm(`Usunąć parowanie Rust+ dla ${activeServer}?`))return;
+  try{await json(`/api/rustplus/pairings/${encodeURIComponent(rustPlusPairing.id)}`,{method:'DELETE'});rustPlusPairing=null;rustPlusSessionInfo=null;renderRustPlusPanel();showToast('Parowanie Rust+ usunięte.',{autoHide:true});}catch(e){showToast(e.message);}
+}
+async function copyRustPlusSession(){
+  if(!rustPlusSessionInfo)return;
+  const text=`TOKEN=${rustPlusSessionInfo.token}\nCALLBACK=${rustPlusSessionInfo.completeUrl}\nPROVIDER=${activeProvider}\nSERVER=${activeServer}`;
+  try{await navigator.clipboard.writeText(text);showToast('Dane sesji skopiowane.',{autoHide:true});}catch{prompt('Skopiuj dane sesji:',text);}
+}
+
 function availableServers(provider){
   if(provider==='rustoria'){
     return [...new Map([
@@ -196,6 +250,8 @@ function setActiveSource(provider,server,{persist=true}={}){
   }
   updateSourceUi();
   render(lastSnapshot);
+  rustPlusSessionInfo=null;
+  loadRustPlusPairing().catch(()=>{});
 }
 async function load(){
   appConfig=await json('/api/config');
@@ -237,6 +293,9 @@ document.querySelectorAll('.statistics-tab').forEach(btn=>btn.onclick=()=>{docum
 $('#teamSearch').oninput=e=>{searchTerm=e.target.value.trim();render(lastSnapshot);};
 document.querySelectorAll('.provider-card').forEach(card=>card.onclick=()=>openProvider(card.dataset.provider));
 $('#backToNetworks').onclick=()=>showHome();
+$('#rustPlusPairBtn').onclick=()=>startRustPlusPairing();
+$('#rustPlusUnpairBtn').onclick=()=>unpairRustPlus();
+$('#rustPlusCopyBtn').onclick=()=>copyRustPlusSession();
 $('#serverFilter').onchange=e=>setActiveSource(activeProvider,e.target.value);
 
 load().catch(e=>showToast(e.message));

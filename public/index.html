@@ -11,6 +11,11 @@
     <main class="page-shell">
       <section id="providerHome" class="provider-home">
         <div class="provider-home-head">
+          <div class="awok-brand-title" aria-label="Awok Rust Tracker">
+            <span class="awok-brand-awok">Awok</span>
+            <span class="awok-brand-rust">Rust</span>
+            <span class="awok-brand-tracker">Tracker</span>
+          </div>
           <div class="network-heading">Choose network</div>
           <p>Select the network you want to manage. Each network keeps its own servers, teams and settings.</p>
         </div>
@@ -60,6 +65,29 @@
             <button id="settingsBtn">⚙ Settings</button>
             <button id="createBtn" class="primary">＋ Create Team</button>
             <form action="/logout" method="post"><button type="submit">Logout</button></form>
+          </div>
+        </section>
+
+        <section id="rustPlusPanel" class="rustplus-panel" hidden>
+          <div class="rustplus-panel-main">
+            <div>
+              <span class="rustplus-kicker">RUST+ SERVER CONNECTION</span>
+              <h3 id="rustPlusTitle">Rust+ not paired</h3>
+              <p id="rustPlusMeta">Select a specific server to manage its Rust+ pairing.</p>
+            </div>
+            <span id="rustPlusStatus" class="rustplus-status disconnected">Disconnected</span>
+          </div>
+          <div class="rustplus-actions">
+            <button id="rustPlusPairBtn" type="button" class="primary">Pair Rust+</button>
+            <button id="rustPlusCopyBtn" type="button" hidden>Copy pairing data</button>
+            <button id="rustPlusUnpairBtn" type="button" class="danger-solid" hidden>Unpair</button>
+          </div>
+          <div id="rustPlusSession" class="rustplus-session" hidden>
+            <label>One-time pairing token</label>
+            <code id="rustPlusToken"></code>
+            <label>Callback URL for pairing EXE</label>
+            <code id="rustPlusCallback"></code>
+            <small>Na tym etapie tracker tworzy bezpieczną sesję dla wybranego serwera. Istniejące EXE trzeba jeszcze podpiąć tak, aby po parowaniu POST-owało token + pairingData na callback URL.</small>
           </div>
         </section>
 
