@@ -23,6 +23,7 @@ const legacyServer = localStorage.getItem('rustdash.server') || '';
 let activeServer = localStorage.getItem(`rustdash.server.${activeProvider}`) || legacyServer || '';
 let appConfig = null;
 let rustoriaServers = [];
+let currentView = 'home';
 
 function ago(iso){ if(!iso)return 'Waiting for data'; const s=Math.max(0,Math.floor((Date.now()-new Date(iso))/1000)); return s<10?'Updated just now':s<60?`Updated ${s}s ago`:`Updated ${Math.floor(s/60)}m ago`; }
 function createdAgo(iso){ if(!iso)return 'Created recently'; const d=Math.max(0,Math.floor((Date.now()-new Date(iso))/86400000)); return d===0?'Created today':d===1?'Created 1 day ago':`Created ${d} days ago`; }
@@ -39,10 +40,51 @@ function activityAgo(iso){if(!iso)return '';const s=Math.max(0,Math.floor((Date.
 function showToast(message,{autoHide=false}={}){const msg=String(message||'').trim();if(!msg){$('#toast').hidden=true;$('#toastText').textContent='';return;}if(msg===dismissedToast)return;clearTimeout(toastTimer);$('#toastText').textContent=msg;$('#toast').hidden=false;if(autoHide)toastTimer=setTimeout(()=>{if($('#toastText').textContent===msg)$('#toast').hidden=true;},6000);}
 $('#toastClose').onclick=()=>{dismissedToast=$('#toastText').textContent;$('#toast').hidden=true;};
 
+function renderProviderHomeCounts(){
+  const counts = provider => ({
+    teams: teamsMeta.filter(t=>t.provider===provider).length,
+    servers: new Set(availableServers(provider).map(x=>x.value).filter(Boolean)).size
+  });
+  const reddit=counts('reddit'), rustoria=counts('rustoria');
+  if($('#redditTeamCount')) $('#redditTeamCount').textContent=`${reddit.teams} ${reddit.teams===1?'team':'teams'}`;
+  if($('#redditServerCount')) $('#redditServerCount').textContent=`${reddit.servers} ${reddit.servers===1?'server':'servers'}`;
+  if($('#rustoriaTeamCount')) $('#rustoriaTeamCount').textContent=`${rustoria.teams} ${rustoria.teams===1?'team':'teams'}`;
+  if($('#rustoriaServerCount')) $('#rustoriaServerCount').textContent=`${rustoria.servers} ${rustoria.servers===1?'server':'servers'}`;
+}
+function updateProviderScopedUi(){
+  const label=providerLabel(activeProvider);
+  if($('#activeNetworkKicker')) $('#activeNetworkKicker').textContent=label;
+  if($('#pageTitle')) $('#pageTitle').textContent=`${label} Teams`;
+  if($('#pageSubtitle')) $('#pageSubtitle').textContent=`Track teams and stats only for ${label}.`;
+  const redditBlock=document.querySelector('.reddit-settings');
+  const rustoriaBlock=document.querySelector('.rustoria-settings');
+  if(redditBlock) redditBlock.hidden=activeProvider!=='reddit';
+  if(rustoriaBlock) rustoriaBlock.hidden=activeProvider!=='rustoria';
+}
+function showHome(){
+  currentView='home';
+  $('#providerHome').hidden=false;
+  $('#teamsView').hidden=true;
+  searchTerm='';
+  if($('#teamSearch')) $('#teamSearch').value='';
+  renderProviderHomeCounts();
+}
+function openProvider(provider){
+  currentView='teams';
+  const p=provider==='rustoria'?'rustoria':'reddit';
+  const remembered=localStorage.getItem(serverStorageKey(p))||'';
+  setActiveSource(p,remembered);
+  updateProviderScopedUi();
+  $('#providerHome').hidden=true;
+  $('#teamsView').hidden=false;
+  render(lastSnapshot);
+}
+
 function matchesSearch(team){if(!searchTerm)return true;const q=searchTerm.toLowerCase();if((team.name||'').toLowerCase().includes(q))return true;return (team.members||[]).some(m=>(m.name||'').toLowerCase().includes(q)||String(memberId(m,team.provider)||'').toLowerCase().includes(q));}
 function matchesSource(team){return team.provider===activeProvider && (!activeServer || team.server===activeServer);}
 
 function sourceWarnings(snapshot){
+  if(currentView==='home')return;
   if(snapshot.error){showToast(snapshot.error);return;}
   const relevant=(snapshot.sources||[]).filter(s=>s.provider===activeProvider&&(!activeServer||s.server===activeServer));
   const issue=relevant.find(s=>s.requestedPlayers>0&&s.returnedPlayers===0)||relevant.find(s=>s.missingIds?.length);
@@ -58,6 +100,7 @@ function sourceWarnings(snapshot){
 
 function render(snapshot){
   lastSnapshot=snapshot||lastSnapshot;
+  renderProviderHomeCounts();
   sourceWarnings(lastSnapshot);
   const root=$('#teams');
   const byId=new Map((lastSnapshot.teams||[]).map(t=>[t.id,t]));
@@ -145,7 +188,6 @@ function updateSourceUi(){
 function setActiveSource(provider,server,{persist=true}={}){
   activeProvider=provider==='rustoria'?'rustoria':'reddit';
   activeServer=String(server||'').trim();
-  $('#providerSelect').value=activeProvider;
   fillServerOptions();
   $('#serverFilter').value=activeServer;
   if(persist){
@@ -162,10 +204,11 @@ async function load(){
   const remembered=localStorage.getItem(serverStorageKey(activeProvider));
   if(remembered!==null) activeServer=remembered;
   fillServerOptions();
-  $('#providerSelect').value=activeProvider;
   $('#serverFilter').value=activeServer;
   updateSourceUi();
+  updateProviderScopedUi();
   render(await json('/api/stats'));
+  showHome();
 }
 function parseMembers(text,provider){return text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{const [id,...rest]=line.split(',');return provider==='rustoria'?{rustoriaId:id.trim(),name:rest.join(',').trim()}:{steamId:id.trim(),name:rest.join(',').trim()};});}
 
@@ -178,7 +221,7 @@ function renderRaidWindows(){const valid=hourlyAverages().filter(x=>x.avg!=null)
 async function loadStatsHistory(){if(!statsTeamId)return;const hours=Number($('#statsRange').value||24);const data=await json(`/api/teams/${encodeURIComponent(statsTeamId)}/history?hours=${hours}`);statsHistory=data.rows||[];renderFarmStatistics();renderHourly();renderRaidWindows();}
 async function openStatistics(id){statsTeamId=id;const t=snapshotTeam(id)||teamsMeta.find(x=>x.id===id);$('#statisticsTitle').textContent=`${t?.name||'Team'} - Statistics`;$('#statisticsDialog').showModal();document.querySelectorAll('.statistics-tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='farm'));document.querySelectorAll('.statistics-pane').forEach(x=>x.classList.toggle('active',x.id==='statsFarm'));try{await loadStatsHistory();}catch(e){showToast(e.message);}}
 
-$('#settingsBtn').onclick=async()=>{const c=await json('/api/config');appConfig=c;$('#server').value=c.server||'';$('#wipeDate').value=c.wipeDate||'';$('#bmId').value=c.battlemetricsServerId||'';$('#authToken').value='';$('#tokenState').textContent=c.hasAuthToken?'Reddit token configured. Enter a new token to replace it.':'Reddit token is not configured.';$('#rustoriaServer').value=c.rustoriaServer||'';$('#rustoriaWipe').value=c.rustoriaWipe||'';$('#rustoriaAuthorization').value='';$('#rustoriaCookie').value='';$('#rustoriaApiKey').value='';$('#rustoriaAuthState').textContent=c.hasRustoriaAuthorization?'Rustoria Authorization configured.':'Rustoria Authorization not configured.';$('#rustoriaCookieState').textContent=c.hasRustoriaCookie?'Rustoria Cookie configured.':'Rustoria Cookie not configured.';$('#rustoriaApiKeyState').textContent=c.hasRustoriaApiKey?'Rustoria x-api-key configured.':'Rustoria x-api-key not configured.';fillServerOptions();$('#settings').showModal();};
+$('#settingsBtn').onclick=async()=>{const c=await json('/api/config');appConfig=c;updateProviderScopedUi();$('#server').value=c.server||'';$('#wipeDate').value=c.wipeDate||'';$('#bmId').value=c.battlemetricsServerId||'';$('#authToken').value='';$('#tokenState').textContent=c.hasAuthToken?'Reddit token configured. Enter a new token to replace it.':'Reddit token is not configured.';$('#rustoriaServer').value=c.rustoriaServer||'';$('#rustoriaWipe').value=c.rustoriaWipe||'';$('#rustoriaAuthorization').value='';$('#rustoriaCookie').value='';$('#rustoriaApiKey').value='';$('#rustoriaAuthState').textContent=c.hasRustoriaAuthorization?'Rustoria Authorization configured.':'Rustoria Authorization not configured.';$('#rustoriaCookieState').textContent=c.hasRustoriaCookie?'Rustoria Cookie configured.':'Rustoria Cookie not configured.';$('#rustoriaApiKeyState').textContent=c.hasRustoriaApiKey?'Rustoria x-api-key configured.':'Rustoria x-api-key not configured.';fillServerOptions();$('#settings').showModal();};
 $('#testApi').onclick=async()=>{const provider=activeProvider;showToast(`Testuję ${providerLabel(provider)} API…`);try{const j=await json('/api/config/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider,server:$('#server').value,wipeDate:$('#wipeDate').value,authToken:$('#authToken').value,rustoriaServer:$('#rustoriaServer').value,rustoriaWipe:$('#rustoriaWipe').value,rustoriaAuthorization:$('#rustoriaAuthorization').value,rustoriaCookie:$('#rustoriaCookie').value,rustoriaApiKey:$('#rustoriaApiKey').value})});showToast(`${providerLabel(provider)} API OK — ${j.rows} rekordów.`,{autoHide:true});}catch(e){showToast(e.message);}};
 $('#saveSettings').onclick=async()=>{await json('/api/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:activeProvider,server:$('#server').value,wipeDate:$('#wipeDate').value,battlemetricsServerId:$('#bmId').value,authToken:$('#authToken').value,rustoriaServer:$('#rustoriaServer').value,rustoriaWipe:$('#rustoriaWipe').value,rustoriaAuthorization:$('#rustoriaAuthorization').value,rustoriaCookie:$('#rustoriaCookie').value,rustoriaApiKey:$('#rustoriaApiKey').value})});$('#settings').close();showToast('Ustawienia zapisane. Odświeżam dane…',{autoHide:true});await json('/api/stats/refresh',{method:'POST'});await load();};
 function configureCreateDialog(){const p=activeProvider;const server=activeServer||(p==='rustoria'?appConfig?.rustoriaServer:appConfig?.server)||'';$('#createSource').innerHTML=`<b>${providerLabel(p)}</b><span>${esc(server||'No server selected')}</span>`;$('#membersLabel').textContent=p==='rustoria'?'Members — Rustoria ID':'Members — SteamID64';$('#members').placeholder=p==='rustoria'?'6149a6f5a718593b330e5299, Awok\n655dafd6a6df6c41103..., Player 2':'76561198014687798, Awok\n7656119..., Player 2';$('#membersHelp').textContent=p==='rustoria'?'Jedna osoba na linię: 24-znakowy Rustoria ID, opcjonalna nazwa po przecinku.':'Jedna osoba na linię: SteamID64, opcjonalna nazwa po przecinku.';}
@@ -192,7 +235,8 @@ $('#statisticsClose').onclick=()=>$('#statisticsDialog').close();
 $('#statsRange').onchange=()=>loadStatsHistory().catch(e=>showToast(e.message));
 document.querySelectorAll('.statistics-tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.statistics-tab').forEach(x=>x.classList.toggle('active',x===btn));const id={farm:'statsFarm',online:'statsOnline',raid:'statsRaid'}[btn.dataset.tab];document.querySelectorAll('.statistics-pane').forEach(x=>x.classList.toggle('active',x.id===id));if(btn.dataset.tab==='online')renderHourly();if(btn.dataset.tab==='raid')renderRaidWindows();});
 $('#teamSearch').oninput=e=>{searchTerm=e.target.value.trim();render(lastSnapshot);};
-$('#providerSelect').onchange=e=>{const p=e.target.value;const remembered=localStorage.getItem(serverStorageKey(p))||'';setActiveSource(p,remembered);};
+document.querySelectorAll('.provider-card').forEach(card=>card.onclick=()=>openProvider(card.dataset.provider));
+$('#backToNetworks').onclick=()=>showHome();
 $('#serverFilter').onchange=e=>setActiveSource(activeProvider,e.target.value);
 
 load().catch(e=>showToast(e.message));

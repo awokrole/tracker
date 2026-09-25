@@ -7,62 +7,68 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <div class="brand-logo">R</div>
-        <div>
-          <strong>RUST</strong>
-          <span>TEAM TRACKER</span>
-        </div>
-      </div>
-
-      <nav class="sidebar-nav">
-        <a class="nav-link active" href="#"><span>⌂</span>Dashboard</a>
-        <a class="nav-link" href="#"><span>▦</span>Teams</a>
-        <a class="nav-link" href="#"><span>◎</span>Players</a>
-        <a class="nav-link" href="#"><span>▤</span>Statistics</a>
-        <a class="nav-link" href="#"><span>◉</span>Discord</a>
-        <a class="nav-link" href="#"><span>⚙</span>Settings</a>
-      </nav>
-
-      <div class="sidebar-foot">
-        <small>Rust team dashboard v0.4</small>
-      </div>
-    </aside>
-
+  <div class="app-shell no-sidebar">
     <main class="page-shell">
-      <section class="hero">
-        <div class="hero-copy">
+      <section id="providerHome" class="provider-home">
+        <div class="provider-home-head">
           <div class="hero-kicker">Rust Stats Tracker</div>
-          <h1>Teams</h1>
-          <p>Track your team's progress, online activity and farming results.</p>
+          <h1>Choose network</h1>
+          <p>Select the network you want to manage. Each network keeps its own servers, teams and settings.</p>
         </div>
-
-        <div class="hero-actions">
-          <div class="source-selectors">
-            <label>Network
-              <select id="providerSelect">
-                <option value="reddit">Reddit PlayRust</option>
-                <option value="rustoria">Rustoria</option>
-              </select>
-            </label>
-            <label>Server
-              <select id="serverFilter"></select>
-            </label>
-          </div>
-          <div class="toolbar-search">
-            <input id="teamSearch" type="search" placeholder="Search teams...">
-          </div>
-          <button id="settingsBtn">⚙ Settings</button>
-          <button id="createBtn" class="primary">＋ Create Team</button>
-          <form action="/logout" method="post"><button type="submit">Logout</button></form>
+        <div class="provider-grid">
+          <button class="provider-card reddit-card" data-provider="reddit" type="button">
+            <div class="provider-card-mark">R</div>
+            <div class="provider-card-copy">
+              <span class="provider-card-label">NETWORK</span>
+              <h2>Reddit PlayRust</h2>
+              <p>Open Reddit teams, servers and Reddit-only settings.</p>
+              <div class="provider-card-meta"><span id="redditTeamCount">0 teams</span><span id="redditServerCount">0 servers</span></div>
+            </div>
+            <span class="provider-card-arrow">→</span>
+          </button>
+          <button class="provider-card rustoria-card" data-provider="rustoria" type="button">
+            <div class="provider-card-mark">R</div>
+            <div class="provider-card-copy">
+              <span class="provider-card-label">NETWORK</span>
+              <h2>Rustoria</h2>
+              <p>Open Rustoria teams, servers and Rustoria-only settings.</p>
+              <div class="provider-card-meta"><span id="rustoriaTeamCount">0 teams</span><span id="rustoriaServerCount">0 servers</span></div>
+            </div>
+            <span class="provider-card-arrow">→</span>
+          </button>
         </div>
+        <form action="/logout" method="post" class="home-logout"><button type="submit">Logout</button></form>
       </section>
 
-      <main id="teams" class="teams-grid"></main>
+      <section id="teamsView" class="teams-view" hidden>
+        <section class="hero">
+          <div class="hero-copy">
+            <button id="backToNetworks" class="back-network" type="button">← Networks</button>
+            <div class="hero-kicker" id="activeNetworkKicker">Rust Stats Tracker</div>
+            <h1 id="pageTitle">Teams</h1>
+            <p id="pageSubtitle">Track your team's progress, online activity and farming results.</p>
+          </div>
+
+          <div class="hero-actions">
+            <div class="source-selectors single-source">
+              <label>Server
+                <select id="serverFilter"></select>
+              </label>
+            </div>
+            <div class="toolbar-search">
+              <input id="teamSearch" type="search" placeholder="Search teams...">
+            </div>
+            <button id="settingsBtn">⚙ Settings</button>
+            <button id="createBtn" class="primary">＋ Create Team</button>
+            <form action="/logout" method="post"><button type="submit">Logout</button></form>
+          </div>
+        </section>
+
+        <main id="teams" class="teams-grid"></main>
+      </section>
     </main>
   </div>
+
 
   <div id="toast" class="toast" hidden>
     <span id="toastText"></span>
@@ -73,7 +79,7 @@
     <form method="dialog" class="modal">
       <h2>Settings</h2>
       <div class="tabs"><b>Providers</b><span>Discord</span><span>Thresholds</span></div>
-      <div class="settings-provider-block">
+      <div class="settings-provider-block reddit-settings">
         <h3>Reddit PlayRust</h3>
         <label>Server</label>
         <input id="server" placeholder="reddit_eu_monthly">
