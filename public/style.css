@@ -471,6 +471,7 @@ details{margin-top:10px;font-size:11px}
 
 .provider-home{min-height:calc(100vh - 58px);display:flex;flex-direction:column;justify-content:center;max-width:1180px;margin:0 auto;padding:28px 0}
 .provider-home-head{text-align:center;margin-bottom:32px}
+.main-brand-logo{display:block;width:min(980px,94vw);height:auto;margin:0 auto 18px;filter:drop-shadow(0 18px 40px rgba(0,0,0,.52))}
 .provider-home-head .hero-kicker{margin-bottom:12px}
 .provider-home-head h1{font-size:52px;line-height:1;margin:0 0 12px;letter-spacing:-.045em}
 .provider-home-head p{margin:0 auto;color:#aebdd7;font-size:18px;max-width:700px}
@@ -504,11 +505,12 @@ details{margin-top:10px;font-size:11px}
 @media(max-width:820px){
   .app-shell.no-sidebar .page-shell{padding:16px}
   .provider-home{min-height:auto;padding:44px 0}
-  .provider-home-head h1{font-size:42px}
+  .main-brand-logo{width:min(900px,96vw);margin-bottom:14px}
   .provider-grid{grid-template-columns:1fr}
   .provider-card{min-height:180px;padding:22px}
 }
 @media(max-width:520px){
+  .main-brand-logo{width:96vw;margin-bottom:12px}
   .provider-card{grid-template-columns:auto 1fr;gap:14px}
   .provider-card-mark{width:56px;height:56px;border-radius:15px}
   .provider-card-arrow{display:none}
