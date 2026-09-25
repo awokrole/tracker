@@ -30,7 +30,7 @@ const raidingMap = {
 function authHeaders(config = {}) {
   const h = {
     Accept: 'application/json',
-    'User-Agent': 'RustStatsDashboard/0.4.0'
+    'User-Agent': 'RustStatsDashboard/0.4.2'
   };
   const auth = String(config.rustoriaAuthorization || '').trim();
   const cookie = String(config.rustoriaCookie || '').trim();
@@ -149,7 +149,7 @@ export async function fetchRustoriaPlayers(config, server, wipe, members, { bypa
     const [resourcesRows, pvpRows, raidingRows] = await Promise.all([
       leaderboard(config, server, 'resources', username, wipe, { bypassCache }),
       leaderboard(config, server, 'pvp', username, wipe, { bypassCache }),
-      leaderboard(config, server, 'raiding', username, wipe, { bypassCache })
+      leaderboard(config, server, 'explosives', username, wipe, { bypassCache })
     ]);
 
     const resources = exactRow(resourcesRows, rustoriaId, username);
