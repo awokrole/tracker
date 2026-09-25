@@ -6,6 +6,33 @@ import { readStore, writeStore } from './store.js';
 import { STAT_IDS, fetchSavedPlayers, getPage, normalizeAuthToken, clearPageCache } from './providers/reddit.js';
 import { fetchRustoriaPlayers, testRustoria, tryListRustoriaServers, clearRustoriaCache, getRustoriaUser } from './providers/rustoria.js';
 
+
+const rustoriaActivityState = new Map();
+const RUSTORIA_ACTIVE_MS = Math.max(60_000, Number(process.env.RUSTORIA_ACTIVE_MS || 5 * 60_000));
+const RUSTORIA_RECENT_MS = Math.max(RUSTORIA_ACTIVE_MS, Number(process.env.RUSTORIA_RECENT_MS || 15 * 60_000));
+const rustoriaActivityKeys = ['playTime','wood','metal','hqMetal','sulfur','stones','kills','deaths','rockets','hvRockets','c4','satchels','headshots','wounds','bulletsFired','bulletsHitPlayer','rocketHitOnline','rocketHitOffline'];
+function rustoriaActivityKey(server, wipe, rustoriaId) { return `${server}|${wipe || ''}|${rustoriaId}`; }
+function activitySnapshot(stats = {}) { return Object.fromEntries(rustoriaActivityKeys.map(k => [k, stats?.[k] == null ? null : Number(stats[k]) || 0])); }
+function detectRustoriaActivity(server, wipe, rustoriaId, stats = {}) {
+  const key = rustoriaActivityKey(server, wipe, rustoriaId);
+  const now = Date.now();
+  const current = activitySnapshot(stats);
+  const previous = rustoriaActivityState.get(key);
+  let changed = false;
+  if (previous?.values) {
+    for (const stat of rustoriaActivityKeys) {
+      const a = previous.values[stat], b = current[stat];
+      if (a != null && b != null && b > a) { changed = true; break; }
+    }
+  }
+  const lastActivityAt = changed ? now : (previous?.lastActivityAt || null);
+  rustoriaActivityState.set(key, { values: current, lastActivityAt, sampledAt: now });
+  if (!previous) return { state: 'warming', lastActivityAt: null, changed: false };
+  if (!lastActivityAt) return { state: 'inactive', lastActivityAt: null, changed: false };
+  const age = now - lastActivityAt;
+  return { state: age <= RUSTORIA_ACTIVE_MS ? 'active' : age <= RUSTORIA_RECENT_MS ? 'recent' : 'inactive', lastActivityAt: new Date(lastActivityAt).toISOString(), changed };
+}
+
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const password = process.env.PANEL_PASSWORD || '';
@@ -252,22 +279,28 @@ async function buildRustoriaGroup(db, groupTeams) {
   const built = groupTeams.map(t => ({
     ...t,
     onlineSupported: false,
+    activitySupported: true,
     stats: Object.fromEntries(allStats.map(k => [k, nullableSum(t.members.map(m => players.get(m.rustoriaId)?.stats?.[k] ?? null))])),
     members: t.members.map(m => {
       const p = players.get(m.rustoriaId);
+      const stats = p?.stats || Object.fromEntries(allStats.map(k => [k, ['explosiveAmmo','playTime','accuracy'].includes(k) ? null : 0]));
+      const activity = detectRustoriaActivity(sample.server, sample.wipe, m.rustoriaId, stats);
       return {
         ...m,
         playerId: m.rustoriaId,
         name: m.name || p?.username || m.rustoriaId,
         profilePicture: p?.avatar || '',
         isOnline: null,
+        activityState: activity.state,
+        activityChanged: activity.changed,
+        lastActivityAt: activity.lastActivityAt,
         statsHidden: Boolean(p?.statsHidden),
         found: Boolean(p?.found),
-        stats: p?.stats || Object.fromEntries(allStats.map(k => [k, ['explosiveAmmo','playTime','accuracy'].includes(k) ? null : 0]))
+        stats
       };
     })
   }));
-  return { teams: built, source: { provider: 'rustoria', server: sample.server, wipe: sample.wipe || null, requestedPlayers: members.length, returnedPlayers: [...players.values()].filter(p => p.found).length, missingIds: members.filter(m => !players.get(m.rustoriaId)?.found).map(m => m.rustoriaId), onlineSupported: false } };
+  return { teams: built, source: { provider: 'rustoria', server: sample.server, wipe: sample.wipe || null, requestedPlayers: members.length, returnedPlayers: [...players.values()].filter(p => p.found).length, missingIds: members.filter(m => !players.get(m.rustoriaId)?.found).map(m => m.rustoriaId), onlineSupported: false, activitySupported: true } };
 }
 
 async function buildSnapshot() {
