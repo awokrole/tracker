@@ -27,7 +27,7 @@
       </nav>
 
       <div class="sidebar-foot">
-        <small>Rust team dashboard v0.3</small>
+        <small>Rust team dashboard v0.4</small>
       </div>
     </aside>
 
@@ -40,6 +40,17 @@
         </div>
 
         <div class="hero-actions">
+          <div class="source-selectors">
+            <label>Network
+              <select id="providerSelect">
+                <option value="reddit">Reddit PlayRust</option>
+                <option value="rustoria">Rustoria</option>
+              </select>
+            </label>
+            <label>Server
+              <select id="serverFilter"></select>
+            </label>
+          </div>
           <div class="toolbar-search">
             <input id="teamSearch" type="search" placeholder="Search teams...">
           </div>
@@ -61,22 +72,41 @@
   <dialog id="settings">
     <form method="dialog" class="modal">
       <h2>Settings</h2>
-      <div class="tabs"><b>Server</b><span>Discord</span><span>Thresholds</span></div>
-      <label>Server</label>
-      <input id="server" placeholder="reddit_eu_monthly">
-      <small>e.g. reddit_eu_monthly, reddit_us_monthly, reddit_eu_main</small>
-      <label>Wipe Date</label>
-      <input id="wipeDate" placeholder="2026-09-03T17:55:00Z">
-      <small>ISO format: YYYY-MM-DDTHH:MM:SSZ</small>
-      <label>BattleMetrics Server ID</label>
-      <input id="bmId" placeholder="3344761">
-      <small>Zapisywane w konfiguracji panelu.</small>
-      <label>Auth Token</label>
-      <div id="tokenState" class="notice"></div>
-      <input id="authToken" type="password" placeholder="Bearer eyJ...">
-      <small>Token nie jest zwracany do przeglądarki po zapisaniu.</small>
+      <div class="tabs"><b>Providers</b><span>Discord</span><span>Thresholds</span></div>
+      <div class="settings-provider-block">
+        <h3>Reddit PlayRust</h3>
+        <label>Server</label>
+        <input id="server" placeholder="reddit_eu_monthly">
+        <small>e.g. reddit_eu_monthly, reddit_us_monthly, reddit_eu_main</small>
+        <label>Wipe Date</label>
+        <input id="wipeDate" placeholder="2026-09-03T17:55:00Z">
+        <small>ISO format: YYYY-MM-DDTHH:MM:SSZ</small>
+        <label>BattleMetrics Server ID</label>
+        <input id="bmId" placeholder="3344761">
+        <label>Auth Token</label>
+        <div id="tokenState" class="notice"></div>
+        <input id="authToken" type="password" placeholder="Bearer eyJ...">
+      </div>
+      <div class="settings-provider-block rustoria-settings">
+        <h3>Rustoria</h3>
+        <label>Default server slug</label>
+        <input id="rustoriaServer" list="rustoriaServerOptions" placeholder="vanilla_long_eueast">
+        <datalist id="rustoriaServerOptions"></datalist>
+        <small>Przykład: vanilla_long_eueast</small>
+        <label>Wipe (optional)</label>
+        <input id="rustoriaWipe" placeholder="Leave empty for current wipe">
+        <label>Authorization (optional)</label>
+        <div id="rustoriaAuthState" class="notice"></div>
+        <input id="rustoriaAuthorization" type="password" placeholder="Bearer ...">
+        <label>Cookie (optional)</label>
+        <div id="rustoriaCookieState" class="notice"></div>
+        <input id="rustoriaCookie" type="password" placeholder="Paste only if Rustoria API requires it">
+        <label>x-api-key (optional)</label>
+        <div id="rustoriaApiKeyState" class="notice"></div>
+        <input id="rustoriaApiKey" type="password" placeholder="x-api-key value">
+      </div>
       <div class="modal-actions">
-        <button id="testApi" type="button">Test API</button>
+        <button id="testApi" type="button">Test selected provider</button>
         <button value="cancel">Cancel</button>
         <button id="saveSettings" type="button" class="primary">Save</button>
       </div>
@@ -86,11 +116,12 @@
   <dialog id="create">
     <form method="dialog" class="modal">
       <h2>Create Team</h2>
+      <div id="createSource" class="create-source"></div>
       <label>Team name</label>
       <input id="teamName" placeholder="AWOK">
-      <label>Members</label>
-      <textarea id="members" rows="9" placeholder="76561198014687798, Awok&#10;7656119..., Player 2"></textarea>
-      <small>Jedna osoba na linię: SteamID64, opcjonalna nazwa po przecinku.</small>
+      <label id="membersLabel">Members</label>
+      <textarea id="members" rows="9"></textarea>
+      <small id="membersHelp"></small>
       <div class="modal-actions">
         <button value="cancel">Cancel</button>
         <button id="saveTeam" type="button" class="primary">Create</button>
@@ -113,9 +144,9 @@
         </div>
       </div>
       <div class="detail-add">
-        <label>Steam64 ID</label>
+        <label id="detailMemberIdLabel">Player ID</label>
         <div>
-          <input id="newMemberId" placeholder="7656119...">
+          <input id="newMemberId" placeholder="Player ID">
           <button id="addMemberBtn" class="success">Add Member</button>
         </div>
       </div>
