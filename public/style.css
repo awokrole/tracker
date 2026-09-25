@@ -483,9 +483,10 @@ details{margin-top:10px;font-size:11px}
 .rustoria-card::before{background:radial-gradient(circle at 8% 20%,rgba(216,101,42,.24),transparent 35%),linear-gradient(110deg,rgba(216,101,42,.10),transparent 55%)}
 .reddit-card:hover{border-color:rgba(89,180,255,.55)}
 .rustoria-card:hover{border-color:rgba(255,147,71,.55)}
-.provider-card-mark{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;font-size:36px;font-weight:950;color:#fff;border:1px solid rgba(255,255,255,.14)}
-.reddit-card .provider-card-mark{background:linear-gradient(135deg,#327eea,#173b7c);box-shadow:0 14px 32px rgba(40,105,205,.25)}
-.rustoria-card .provider-card-mark{background:linear-gradient(135deg,#e57437,#8f2d0f);box-shadow:0 14px 32px rgba(166,67,24,.28)}
+.provider-card-mark{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(255,255,255,.14);background:rgba(8,18,30,.92);box-shadow:0 14px 32px rgba(8,14,24,.22)}
+.provider-card-mark img{width:100%;height:100%;object-fit:cover;display:block}
+.reddit-card .provider-card-mark{box-shadow:0 14px 32px rgba(40,105,205,.25)}
+.rustoria-card .provider-card-mark{box-shadow:0 14px 32px rgba(166,67,24,.28)}
 .provider-card-label{display:block;color:#8298bc;font-size:11px;font-weight:900;letter-spacing:.13em;margin-bottom:5px}
 .provider-card h2{font-size:32px;margin:0 0 8px;letter-spacing:-.03em;color:#fff}
 .provider-card p{margin:0;color:#9fb0cd;font-size:14px;line-height:1.55}
@@ -509,7 +510,7 @@ details{margin-top:10px;font-size:11px}
 }
 @media(max-width:520px){
   .provider-card{grid-template-columns:auto 1fr;gap:14px}
-  .provider-card-mark{width:56px;height:56px;border-radius:15px;font-size:29px}
+  .provider-card-mark{width:56px;height:56px;border-radius:15px}
   .provider-card-arrow{display:none}
   .provider-card h2{font-size:26px}
 }
