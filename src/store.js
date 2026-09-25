@@ -6,10 +6,16 @@ const file = path.join(dataDir, 'dashboard.json');
 
 const defaults = {
   config: {
+    provider: 'reddit',
     server: '',
     wipeDate: '',
     battlemetricsServerId: '',
-    authToken: ''
+    authToken: '',
+    rustoriaServer: 'vanilla_long_eueast',
+    rustoriaWipe: '',
+    rustoriaAuthorization: '',
+    rustoriaCookie: '',
+    rustoriaApiKey: ''
   },
   teams: [],
   history: []
