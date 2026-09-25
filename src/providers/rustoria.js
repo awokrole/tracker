@@ -18,6 +18,9 @@ const pvpMap = {
   bulletsFired: 'weapon_bullet_fired_total',
   bulletsHitPlayer: 'weapon_bullet_hit_player'
 };
+const miscMap = {
+  playTime: 'player_time_played'
+};
 const raidingMap = {
   rockets: 'weapon_rocket_launched_basic',
   hvRockets: 'weapon_rocket_launched_hv',
@@ -30,7 +33,7 @@ const raidingMap = {
 function authHeaders(config = {}) {
   const h = {
     Accept: 'application/json',
-    'User-Agent': 'RustStatsDashboard/0.4.2'
+    'User-Agent': 'RustStatsDashboard/0.4.3'
   };
   const auth = String(config.rustoriaAuthorization || '').trim();
   const cookie = String(config.rustoriaCookie || '').trim();
@@ -146,30 +149,33 @@ export async function fetchRustoriaPlayers(config, server, wipe, members, { bypa
       continue;
     }
 
-    const [resourcesRows, pvpRows, raidingRows] = await Promise.all([
+    const [resourcesRows, pvpRows, raidingRows, miscRows] = await Promise.all([
       leaderboard(config, server, 'resources', username, wipe, { bypassCache }),
       leaderboard(config, server, 'pvp', username, wipe, { bypassCache }),
-      leaderboard(config, server, 'explosives', username, wipe, { bypassCache })
+      leaderboard(config, server, 'explosives', username, wipe, { bypassCache }),
+      leaderboard(config, server, 'misc', username, wipe, { bypassCache })
     ]);
 
     const resources = exactRow(resourcesRows, rustoriaId, username);
     const pvp = exactRow(pvpRows, rustoriaId, username);
     const raiding = exactRow(raidingRows, rustoriaId, username);
+    const misc = exactRow(miscRows, rustoriaId, username);
 
     const stats = {
       ...emptyStats(),
       ...(resources ? mapStats(resources, resourceMap) : {}),
       ...(pvp ? mapStats(pvp, pvpMap) : {}),
-      ...(raiding ? mapStats(raiding, raidingMap) : {})
+      ...(raiding ? mapStats(raiding, raidingMap) : {}),
+      ...(misc ? mapStats(misc, miscMap) : {})
     };
 
     // Rustoria currently does not expose explosive ammo in the leaderboard data we found.
     stats.explosiveAmmo = null;
-    stats.playTime = null;
+    stats.playTime = misc ? Number(misc?.data?.player_time_played || 0) : null;
     stats.kdr = pvp?.data?.kdr == null ? null : Number(pvp.data.kdr);
     stats.accuracy = pvp?.data?.accuracy == null ? null : Number(pvp.data.accuracy);
 
-    const row = resources || pvp || raiding;
+    const row = resources || pvp || raiding || misc;
     result.set(rustoriaId, {
       rustoriaId,
       username: String(row?.username || user?.username || username),
@@ -178,7 +184,7 @@ export async function fetchRustoriaPlayers(config, server, wipe, members, { bypa
       statsHidden: Boolean(user?.private) && !row,
       found: Boolean(row),
       stats,
-      raw: { resources, pvp, raiding, user }
+      raw: { resources, pvp, raiding, misc, user }
     });
   }
 
